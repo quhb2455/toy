@@ -109,7 +109,7 @@ class TrainDataset(Dataset):
 
 
 class TestDataset(Dataset) :
-    def __init__(self, img_list, label_list, transforms=None):
+    def __init__(self, img_list, transforms=None):
         self.img_list = img_list
         self.transforms = transforms
 

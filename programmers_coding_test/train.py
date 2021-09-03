@@ -201,6 +201,7 @@ class Train():
             # StratifiedKFold가 class 간의  balance를 맞춰주기 때문에 weights는 필요 없음
             kfold = StratifiedKFold(n_splits=self.k_fold_n, random_state=self.random_seed, shuffle=True)
 
+            kfold_result = {"results": [], "best_snapshot":[]}
             for k, (fold_img, fold_label) in enumerate(kfold.split(Datasets.img_list, Datasets.label_list), 1) :
 
                 Datasets.img_list = fold_img
@@ -210,13 +211,20 @@ class Train():
                 fold_train_loader = DataLoader(fold_train_dataset, batch_size=self.batch_size, shuffle=True)
                 fold_valid_loader = DataLoader(fold_valid_dataset, batch_size=self.batch_size, shuffle=True)
 
-                result = {
+                results = {
                     'train_acc': [],
                     'train_loss': [],
                     'valid_acc': [],
                     'valid_loss': [],
                     'valid_f1': []
                 }
+
+                best_snapshot = {
+                    'best_epoch': 0,
+                    'best_f1': 0,
+                    'best_model': None
+                }
+                early_stop_count = 0
                 for E in range(self.epoch + 1) :
                     model.train()
 
@@ -227,7 +235,7 @@ class Train():
                         'iter_valid_loss': [],
                         'iter_valid_f1': []
                     }
-                    for iter, (fold_img, fold_label) in enumerate(fold_train_dataset, 1) :
+                    for iter, (fold_img, fold_label) in enumerate(fold_train_loader, 1) :
 
                         fold_img = fold_img.to(device=self.device, dtype=torch.float)
                         fold_label = fold_label.to(device=self.device)
@@ -240,7 +248,63 @@ class Train():
                         loss.backward()
                         optimizer.step()
 
+                        iter_result['iter_train_acc'].append(self.calc_ACC(pred,fold_label))
+                        iter_result['iter_train_loss'].append(loss.cpu().item())
 
+                        print(f"Epoch [{E} / {self.epoch}]      Iter [{iter} / {len(fold_train_loader)}]" , end="\r")
+
+                    with torch.no_grad() :
+                        model.eval()
+
+                        for iter, (fold_img, fold_label) in enumerate(fold_valid_loader, 1) :
+
+                            fold_img = fold_img.to(device=self.device, dtype=torch.float)
+                            fold_label = fold_label.to(device=self.device)
+
+                            pred = model(fold_img)
+                            loss = criterion(pred, fold_label)
+
+                            pred_argmax = pred.argmax(dim=-1)
+
+
+                            iter_result['iter_valid_acc'].append(self.calc_ACC(pred, fold_label))
+                            iter_result['iter_valid_loss'].append(loss.cpu().item())
+                            iter_result['iter_valid_f1'].append(f1_score(y_true=fold_label.cpu().numpy(),
+                                                                 y_pred=pred_argmax.cpu().numpy(),
+                                                                 average="macro"))
+
+                            print(f"Epoch [{E} / {self.epoch}]      Iter [{iter} / {len(fold_valid_loader)}]", end="\r")
+
+                    results['train_acc'].append(np.mean(iter_result['iter_train_acc']) * 100)
+                    results['train_loss'].append(np.mean(iter_result['iter_train_loss']))
+                    results['valid_acc'].append(np.mean(iter_result['iter_valid_acc']) * 100)
+                    results['valid_loss'].append(np.mean(iter_result['iter_valid_loss']))
+                    results['valid_f1'].append(np.mean(iter_result['iter_valid_f1']))
+
+                    scheduler.step()
+
+                    print(
+                        f"[Epoch {E} / {self.epoch}] "
+                        f"train_acc : {results['train_acc'][-1]:.4f} | "
+                        f"train_loss : {results['train_loss'][-1]:.4f} | "
+                        f"valid_acc : {results['valid_acc'][-1]:.4f} | "
+                        f"valid_loss : {results['valid_loss'][-1]:.2f} | "
+                        f"valid_f1 : {results['valid_f1'][-1]:.4f}"
+                    )
+
+                    if results['valid_f1'][-1] >= best_snapshot['best_f1'] :
+                        best_snapshot['best_f1'] = results['valid_f1'][-1]
+                        best_snapshot['best_epoch'] = E
+                        best_snapshot['best_model'] = model
+                        early_stop_count = 0
+                    else:
+                        early_stop_count += 1
+
+                    if early_stop_count >= self.early_stop :
+                        break
+
+                kfold_result['results'].append(results) # >> ?? 굳이 저장을 해야하나?
+                kfold_result['best_snapshot'].append(best_snapshot)
 
 
 def main(args):
