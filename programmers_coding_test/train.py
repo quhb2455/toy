@@ -158,8 +158,8 @@ class Train():
 
                         print(f"Epoch [{E} / {self.epoch}]      valid_Iter [{iter} / {len(valid_loader)}]" , end="\r")
 
-                print(iter_results['valid_acc'])
-                print(type(iter_results['valid_acc']))
+                # print(iter_results['valid_acc'])
+                # print(type(iter_results['valid_acc']))
                 results['train_acc'].append(np.mean(iter_results['train_acc']) * 100)
                 results['train_loss'].append(np.mean(iter_results['train_loss']))
                 results['valid_acc'].append(np.mean(iter_results['valid_acc']) * 100)
@@ -196,10 +196,51 @@ class Train():
                     break
 
             return results, best_snapshot
-        # else :
-        #     kfold = StratifiedKFold(n_splits=self.k_fold_n, random_state=self.random_seed, shuffle=True)
-        #
-        #     for k, (fold_img, fold_label) in enumerate(kfold.split(Datasets.img_list, Datasets.label_list), 1) :
+
+        else :
+            # StratifiedKFold가 class 간의  balance를 맞춰주기 때문에 weights는 필요 없음
+            kfold = StratifiedKFold(n_splits=self.k_fold_n, random_state=self.random_seed, shuffle=True)
+
+            for k, (fold_img, fold_label) in enumerate(kfold.split(Datasets.img_list, Datasets.label_list), 1) :
+
+                Datasets.img_list = fold_img
+                Datasets.label_list = fold_label
+                fold_train_dataset, fold_valid_dataset = Datasets.DatasetParsing()
+
+                fold_train_loader = DataLoader(fold_train_dataset, batch_size=self.batch_size, shuffle=True)
+                fold_valid_loader = DataLoader(fold_valid_dataset, batch_size=self.batch_size, shuffle=True)
+
+                result = {
+                    'train_acc': [],
+                    'train_loss': [],
+                    'valid_acc': [],
+                    'valid_loss': [],
+                    'valid_f1': []
+                }
+                for E in range(self.epoch + 1) :
+                    model.train()
+
+                    iter_result = {
+                        'iter_train_acc': [],
+                        'iter_train_loss': [],
+                        'iter_valid_acc': [],
+                        'iter_valid_loss': [],
+                        'iter_valid_f1': []
+                    }
+                    for iter, (fold_img, fold_label) in enumerate(fold_train_dataset, 1) :
+
+                        fold_img = fold_img.to(device=self.device, dtype=torch.float)
+                        fold_label = fold_label.to(device=self.device)
+
+                        optimizer.zero_grad()
+
+                        pred = model(fold_img)
+                        loss = criterion(pred, fold_label)
+
+                        loss.backward()
+                        optimizer.step()
+
+
 
 
 def main(args):
@@ -207,7 +248,7 @@ def main(args):
     training = Train(args)
     results, best_snapshot = training.train()
 
-    torch.save(best_snapshot['best_model'], './'+best_snapshot['best_f1']+'_'+best_snapshot['E']+'E_best_model.pt')
+    torch.save(best_snapshot['best_model'], './'+str(best_snapshot['best_f1'])+'_'+str(best_snapshot['best_epoch'])+'E_best_model.pt')
     print(results)
 
     print("DONE")
@@ -220,7 +261,7 @@ if __name__ == "__main__" :
         'model_name' : 'vit_base_patch16_224',
         'export' : './data/model',
         'batch_size' : 16,
-        'epoch' : 10,
+        'epoch' : 15,
         'k_fold_n': False,
         'learning_rate' : 1e-4,
         'early_stop' : 5,
