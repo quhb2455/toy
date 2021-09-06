@@ -198,18 +198,23 @@ class Train():
             return results, best_snapshot
 
         else :
+            print(f"Training Start [ {self.k_fold_n} ] times")
+
             # StratifiedKFold가 class 간의  balance를 맞춰주기 때문에 weights는 필요 없음
             kfold = StratifiedKFold(n_splits=self.k_fold_n, random_state=self.random_seed, shuffle=True)
-            print(len(Datasets.img_list))
-            print(len(Datasets.label_list))
-            kfold_result = {"results": [], "best_snapshot":[]}
+
+            # kfold_result = {"results": [], "best_snapshot":[]}
+            kfold_result = []
             for k, (fold_train, fold_valid) in enumerate(kfold.split(Datasets.img_list, Datasets.label_list), 1) :
-                train_imgs, train_labels = [[Datasets.img_list[i] for i in fold_train]] * 2
-                valid_img, valid_labels = [[Datasets.label_list[i] for i in fold_valid]] * 2
+                train_imgs = [Datasets.img_list[i] for i in fold_train]
+                train_labels = [Datasets.label_list[i] for i in fold_train]
+
+                valid_imgs = [Datasets.img_list[i] for i in fold_valid]
+                valid_labels = [Datasets.label_list[i] for i in fold_valid]
 
                 train_transforms, valid_transforms = Datasets.get_transforms()
                 fold_train_dataset = TrainDataset(img_list=train_imgs, label_list=train_labels, transforms=train_transforms)
-                fold_valid_dataset = TrainDataset(img_list=valid_img, label_list=valid_labels, transforms=valid_transforms)
+                fold_valid_dataset = TrainDataset(img_list=valid_imgs, label_list=valid_labels, transforms=valid_transforms)
 
 
                 # Datasets.img_list = fold_img
@@ -233,6 +238,7 @@ class Train():
                     'best_model': None
                 }
                 early_stop_count = 0
+
                 for E in range(self.epoch + 1) :
                     model.train()
 
@@ -312,9 +318,9 @@ class Train():
                         break
 
                 # kfold_result['results'].append(results) # >> ?? 굳이 저장을 해야하나?
-                kfold_result['best_snapshot'].append(best_snapshot)
+                kfold_result.append(best_snapshot)
 
-                print(f"Fold [{k} / {self.k_fold_n}]  Best-F1 [{kfold_result['best_snapshot'][k]['best_f1']}]")
+                print(f"Fold [{k} / {self.k_fold_n}]  Best-F1 [{kfold_result[k-1]['best_f1']}]")
 
             return kfold_result
 
@@ -328,12 +334,13 @@ def main(args):
 
     else :
         kfold_best_snapshot = training.train()
+        # print(kfold_best_snapshot)
         for idx, bs in enumerate(kfold_best_snapshot) :
             torch.save(bs['best_model'],
                    './Kfold_' + str(idx) +'_'+ str(bs['best_f1']) + '_' + str(bs['best_epoch']) + 'E_best_model.pt')
 
 
-    print(results)
+    # print(results)
 
     print("DONE")
 
@@ -345,8 +352,8 @@ if __name__ == "__main__" :
         'model_name' : 'vit_base_patch16_224',
         'export' : './data/model',
         'batch_size' : 16,
-        'epoch' : 15,
-        'k_fold_n': 5,
+        'epoch' : 2,
+        'k_fold_n': 3,
         'learning_rate' : 1e-4,
         'early_stop' : 5,
         'random_seed' : 11,
