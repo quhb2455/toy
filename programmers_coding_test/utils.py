@@ -19,6 +19,11 @@ class DataParser() :
     def cal_weight(self, class_count):
         return torch.tensor(np.max(class_count) / class_count)
 
+    def get_fold_data(self, fold_datalist):
+        imgs = [self.img_list[i] for i in fold_datalist]
+        labels = [self.label_list[i] for i in fold_datalist]
+
+        return imgs, labels
 
     def get_data(self, data_path, class_encoder):
         classes = os.listdir(data_path)
@@ -56,14 +61,17 @@ class DataParser() :
         return train_transfors, valid_transforms
 
 
-
-    def DatasetParsing(self):
-        train_imgs, valid_imgs, train_labels, valid_labels = train_test_split(self.img_list,
-                                                                              self.label_list,
-                                                                              train_size=0.8,
-                                                                              shuffle=True,
-                                                                              random_state=self.random_seed,
-                                                                              stratify=self.label_list)
+    def DatasetParsing(self, fold_train=None, fold_valid=None):
+        if fold_train is None :
+            train_imgs, valid_imgs, train_labels, valid_labels = train_test_split(self.img_list,
+                                                                                  self.label_list,
+                                                                                  train_size=0.8,
+                                                                                  shuffle=True,
+                                                                                  random_state=self.random_seed,
+                                                                                  stratify=self.label_list)
+        else :
+            train_imgs, train_labels = self.get_fold_data(fold_train)
+            valid_imgs, valid_labels = self.get_fold_data(fold_valid)
 
         train_transforms, valid_transforms = self.get_transforms()
 
