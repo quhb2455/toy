@@ -173,8 +173,8 @@ class Train():
                 early_stop_cout = 0
 
             else:
-                print(f"early_stop_couter : {early_stop_cout} / {self.early_stop}")
                 early_stop_cout += 1
+                print(f"early_stop_couter : {early_stop_cout} / {self.early_stop}")
 
             if early_stop_cout >= self.early_stop:
                 print()
@@ -270,7 +270,7 @@ if __name__ == "__main__" :
         'export' : './data/model',
         'batch_size' : 16,
         'epoch' : 15,
-        'k_fold_n': 6,
+        'k_fold_n': 4,
         'learning_rate' : 1e-4,
         'early_stop' : 5,
         'random_seed' : 11,
