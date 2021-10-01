@@ -2,8 +2,8 @@ import os
 import sys
 import bz2
 from keras.utils import get_file
-from face_alignment.face_alignment import image_align
-from face_alignment.landmarks_detector import LandmarksDetector
+from face_alignment import image_align
+from landmarks_detector import LandmarksDetector
 
 LANDMARKS_MODEL_URL = 'http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2'
 
