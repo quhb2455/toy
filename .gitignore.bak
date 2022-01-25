@@ -6,4 +6,5 @@
 *.avi
 *.mp4
 *.json
+./plant/*
 *.png
