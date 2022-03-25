@@ -17,6 +17,19 @@ class CNN(nn.Module):
         return x
 
 
+class CNN2RNN(nn.Module):
+    def __init__(self, opt):
+        super(CNN2RNN, self).__init__()
+
+        self.cnn = CNN_Encoder(opt.model_name, opt.num_classes, opt.pretrained_path)
+        self.rnn = MLSTMfcn(num_classes=opt.num_classes, max_seq_len=opt.max_len, num_features=opt.num_features)
+
+    def forward(self, img, seq, seq_len):
+        cnn_output = self.cnn(img)
+        output = self.rnn(cnn_output, seq, seq_len)
+
+        return output
+
 class CNN_Encoder(nn.Module):
     def __init__(self, model_name, num_classes, pretrained_path=None):
         super(CNN_Encoder, self).__init__()

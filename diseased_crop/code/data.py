@@ -103,3 +103,27 @@ class CustomDataset(Dataset):
         risk = json_file['annotations']['risk']
 
         return f'{crop}_{disease}_{risk}'
+
+
+class VillageDataset(Dataset):
+    def __init__(self, files, label_decoder, transform):
+        super(VillageDataset, self).__init__()
+        self.files = files
+        self.label_decoder = label_decoder
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, idx):
+        file_path = self.files[idx]
+
+        label = self.label_decoder[file_path.split('\\')[-2]]
+
+        img = cv2.imread(file_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        img = self.transform(image=img)['image']
+        img = img.transpose(2, 0, 1)
+
+        return torch.tensor(img, dtype=torch.float32), torch.tensor(label, dtype=torch.long)

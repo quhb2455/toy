@@ -2,3 +2,7 @@ timm
 sklearn
 albumentations
 easydict
+argparse
+opencv-python
+tqdm
+pandas
