@@ -1,5 +1,3 @@
-# readme
-
 ![Untitled](img/Untitled.png)
 
 ### 주최 : **LG AI Research**
