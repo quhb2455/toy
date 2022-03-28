@@ -1,7 +1,5 @@
 # readme
 
-# **infer.py 테스트 해보기**
-
 ![Untitled](img/Untitled.png)
 
 ### 주최 : **LG AI Research**
