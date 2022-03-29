@@ -11,22 +11,27 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
+def str2non(v) :
+    if v in "None" :
+        return None
+    else:
+        return v
 
 def options() :
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_path', type=str, required=True)
     parser.add_argument('--label_path', type=str, required=True)
     parser.add_argument('--save_path', type=str, default="./")
-    parser.add_argument('--pretrained_path', type=str, default=None)
+    parser.add_argument('--pretrained_path', type=str2non, default=None)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--use_kfold', type=str2bool, default=False)
     parser.add_argument('--kfold_splits', type=int, default=4)
-    parser.add_argument('--model_name', type=str, default="deit_small_patch16_224")
+    parser.add_argument('--model_name', type=str, default="deit_small_patch16_224") # efficientnetv2_rw_s
     parser.add_argument('--resize', type=int, default=224)
     parser.add_argument('--num_classes', type=int, required=True)
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     parser.add_argument('--early_stopping', type=int, default=5)
-    parser.add_argument('--device', type=str, default="cuda")
+    parser.add_argument('--device', type=str, default="cuda:0")
     parser.add_argument('--max_len', type=int, default=590)
     parser.add_argument('--epochs', type=int, default=1)
 
