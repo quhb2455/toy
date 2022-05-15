@@ -1,0 +1,88 @@
+2022-09-05 18:54:40 - {'df_path': '../data/aug_v4_train_df.csv', 'save_path': '../model/effiv2s_aug_v4_mixup', 'model_name': 'efficientnetv2_rw_s', 'num_classes': 88, 'resize': 224, 'device': 'cuda:0', 'early_stopping': 5, 'epochs': 30, 'batch_size': 64, 'learning_rate': 0.0001, 'weight_decay': 0.01, 'cosine_lr_Tmax': 20, 'cosine_lr_eta_min': 1e-05, 'cutmix': False, 'mixup': False, 'resume': False, 'model_path': '../model/swin_aug_v4_mixup/21E_0.0382_swin_base_patch4_window7_224_in22k.pt'}
+2022-09-05 18:54:40 - Loading pretrained weights from url (https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/efficientnet_v2s_ra2_288-a6477665.pth)
+2022-09-05 18:54:50 - {'df_path': '../data/aug_v4_train_df.csv', 'save_path': '../model/effiv2s_aug_v4_mixup', 'model_name': 'efficientnetv2_rw_s', 'num_classes': 88, 'resize': 224, 'device': 'cuda:0', 'early_stopping': 5, 'epochs': 30, 'batch_size': 64, 'learning_rate': 0.0001, 'weight_decay': 0.01, 'cosine_lr_Tmax': 20, 'cosine_lr_eta_min': 1e-05, 'cutmix': False, 'mixup': False, 'resume': False, 'model_path': '../model/swin_aug_v4_mixup/21E_0.0382_swin_base_patch4_window7_224_in22k.pt'}
+2022-09-05 18:54:50 - Loading pretrained weights from url (https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/efficientnet_v2s_ra2_288-a6477665.pth)
+2022-09-05 18:56:33 - {'df_path': '../data/aug_v4_train_df.csv', 'save_path': '../model/effiv2s_aug_v4_mixup', 'model_name': 'efficientnetv2_rw_s', 'num_classes': 88, 'resize': 224, 'device': 'cuda:0', 'early_stopping': 5, 'epochs': 30, 'batch_size': 32, 'learning_rate': 0.0001, 'weight_decay': 0.01, 'cosine_lr_Tmax': 20, 'cosine_lr_eta_min': 1e-05, 'cutmix': False, 'mixup': False, 'resume': False, 'model_path': '../model/swin_aug_v4_mixup/21E_0.0382_swin_base_patch4_window7_224_in22k.pt'}
+2022-09-05 18:56:33 - Loading pretrained weights from url (https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/efficientnet_v2s_ra2_288-a6477665.pth)
+2022-09-05 18:56:54 - {'df_path': '../data/aug_v4_train_df.csv', 'save_path': '../model/effiv2s_aug_v4_mixup', 'model_name': 'efficientnetv2_rw_s', 'num_classes': 88, 'resize': 224, 'device': 'cuda:0', 'early_stopping': 5, 'epochs': 30, 'batch_size': 32, 'learning_rate': 0.0001, 'weight_decay': 0.01, 'cosine_lr_Tmax': 20, 'cosine_lr_eta_min': 1e-05, 'cutmix': False, 'mixup': True, 'resume': False, 'model_path': '../model/swin_aug_v4_mixup/21E_0.0382_swin_base_patch4_window7_224_in22k.pt'}
+2022-09-05 18:56:54 - Loading pretrained weights from url (https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/efficientnet_v2s_ra2_288-a6477665.pth)
+2022-11-05 00:10:58 - {'df_path': '../data/aug_v4_train_df.csv', 'save_path': '../model/effiv2s_aug_v4_mixup', 'model_name': 'efficientnetv2_rw_s', 'num_classes': 88, 'resize': 224, 'device': 'cuda:0', 'early_stopping': 5, 'epochs': 30, 'batch_size': 32, 'learning_rate': 0.001, 'weight_decay': 0.01, 'cosine_lr_Tmax': 20, 'cosine_lr_eta_min': 1e-05, 'cutmix': False, 'mixup': True, 'resume': True, 'model_path': '../model/effiv2s_aug_v4_mixup/4E_0.6705_efficientnetv2_rw_s.pt', 'logging': True, 'kfold': 4}
+2022-11-05 00:10:58 - Loading pretrained weights from url (https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/efficientnet_v2s_ra2_288-a6477665.pth)
+2022-11-05 00:16:36 - {'df_path': '../data/aug_v4_train_df.csv', 'save_path': '../model/effiv2s_aug_v4_mixup', 'model_name': 'efficientnetv2_rw_s', 'num_classes': 88, 'resize': 224, 'device': 'cuda:0', 'early_stopping': 5, 'epochs': 30, 'batch_size': 32, 'learning_rate': 0.0001, 'weight_decay': 0.01, 'cosine_lr_Tmax': 20, 'cosine_lr_eta_min': 1e-05, 'cutmix': False, 'mixup': False, 'resume': False, 'model_path': '../model/effiv2s_aug_v4_mixup/4E_0.6705_efficientnetv2_rw_s.pt', 'logging': True, 'kfold': 4}
+2022-11-05 00:16:37 - Loading pretrained weights from url (https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/efficientnet_v2s_ra2_288-a6477665.pth)
+2022-11-05 01:38:56 - {'df_path': '../data/aug_v4_train_df.csv', 'save_path': '../model/effiv2s_aug_v4_mixup', 'model_name': 'efficientnetv2_rw_s', 'num_classes': 88, 'resize': 224, 'device': 'cuda:0', 'early_stopping': 5, 'epochs': 30, 'batch_size': 32, 'learning_rate': 0.0001, 'weight_decay': 0.01, 'cosine_lr_Tmax': 20, 'cosine_lr_eta_min': 1e-05, 'cutmix': False, 'mixup': False, 'resume': True, 'model_path': '../model/effiv2s_aug_v4_mixup/1E_0.8879_1fold_efficientnetv2_rw_s.pt', 'logging': True, 'kfold': 4}
+2022-11-05 01:38:56 - Loading pretrained weights from url (https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/efficientnet_v2s_ra2_288-a6477665.pth)
+2022-11-05 08:36:25 - {'df_path': '../data/aug_v4_train_df.csv', 'save_path': '../model/effiv2s_aug_v4_mixup', 'model_name': 'efficientnetv2_rw_s', 'num_classes': 88, 'resize': 224, 'device': 'cuda:0', 'early_stopping': 5, 'epochs': 30, 'batch_size': 32, 'learning_rate': 0.0001, 'weight_decay': 0.01, 'cosine_lr_Tmax': 20, 'cosine_lr_eta_min': 1e-05, 'cutmix': False, 'mixup': False, 'resume': True, 'model_path': '../model/effiv2s_aug_v4_mixup/1E_0.8879_1fold_efficientnetv2_rw_s.pt', 'logging': True, 'kfold': 4}
+2022-11-05 08:36:26 - Loading pretrained weights from url (https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/efficientnet_v2s_ra2_288-a6477665.pth)
+2022-11-05 08:36:53 - {'df_path': '../data/aug_v4_train_df.csv', 'save_path': '../model/effiv2s_aug_v4_mixup', 'model_name': 'efficientnetv2_rw_s', 'num_classes': 88, 'resize': 224, 'device': 'cuda:0', 'early_stopping': 5, 'epochs': 30, 'batch_size': 32, 'learning_rate': 0.0001, 'weight_decay': 0.01, 'cosine_lr_Tmax': 20, 'cosine_lr_eta_min': 1e-05, 'cutmix': False, 'mixup': False, 'resume': False, 'model_path': '../model/effiv2s_aug_v4_mixup/1E_0.8879_1fold_efficientnetv2_rw_s.pt', 'logging': True, 'kfold': 4}
+2022-11-05 08:36:53 - Loading pretrained weights from url (https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/efficientnet_v2s_ra2_288-a6477665.pth)
+===== k_fold : 2 / 4 =====
+100%|█████████████████████| 726/726 [12:44<00:00,  1.05s/it, Epoch=1, Mean train loss=1.375984, Mean train f1=0.426371]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=1.023072, Mean valid f1=0.498219]
+100%|█████████████████████| 726/726 [12:47<00:00,  1.06s/it, Epoch=2, Mean train loss=0.471698, Mean train f1=0.739285]
+100%|██████████████████████████████| 242/242 [03:29<00:00,  1.15it/s, Mean valid loss=0.628341, Mean valid f1=0.686857]
+100%|█████████████████████| 726/726 [12:48<00:00,  1.06s/it, Epoch=3, Mean train loss=0.278006, Mean train f1=0.839134]
+100%|██████████████████████████████| 242/242 [03:31<00:00,  1.15it/s, Mean valid loss=0.470963, Mean valid f1=0.764112]
+100%|█████████████████████| 726/726 [12:49<00:00,  1.06s/it, Epoch=4, Mean train loss=0.194856, Mean train f1=0.886292]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.389714, Mean valid f1=0.805172]
+100%|█████████████████████| 726/726 [12:50<00:00,  1.06s/it, Epoch=5, Mean train loss=0.154172, Mean train f1=0.907848]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.278450, Mean valid f1=0.856478]
+100%|█████████████████████| 726/726 [12:48<00:00,  1.06s/it, Epoch=6, Mean train loss=0.125720, Mean train f1=0.927739]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.202124, Mean valid f1=0.880549]
+100%|█████████████████████| 726/726 [12:49<00:00,  1.06s/it, Epoch=7, Mean train loss=0.094427, Mean train f1=0.944314]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.231373, Mean valid f1=0.884417]
+Early Stopping Step : [1 / 5]
+100%|█████████████████████| 726/726 [12:49<00:00,  1.06s/it, Epoch=8, Mean train loss=0.081335, Mean train f1=0.949843]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.212666, Mean valid f1=0.888615]
+Early Stopping Step : [2 / 5]
+100%|█████████████████████| 726/726 [12:48<00:00,  1.06s/it, Epoch=9, Mean train loss=0.064229, Mean train f1=0.963274]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.187622, Mean valid f1=0.903983]
+100%|████████████████████| 726/726 [12:49<00:00,  1.06s/it, Epoch=10, Mean train loss=0.052166, Mean train f1=0.969854]
+100%|██████████████████████████████| 242/242 [03:31<00:00,  1.15it/s, Mean valid loss=0.147705, Mean valid f1=0.921044]
+100%|████████████████████| 726/726 [12:48<00:00,  1.06s/it, Epoch=11, Mean train loss=0.047974, Mean train f1=0.972708]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.192475, Mean valid f1=0.914635]
+Early Stopping Step : [1 / 5]
+100%|████████████████████| 726/726 [12:48<00:00,  1.06s/it, Epoch=12, Mean train loss=0.038167, Mean train f1=0.978172]
+100%|██████████████████████████████| 242/242 [03:29<00:00,  1.15it/s, Mean valid loss=0.119535, Mean valid f1=0.941397]
+100%|████████████████████| 726/726 [12:48<00:00,  1.06s/it, Epoch=13, Mean train loss=0.032210, Mean train f1=0.983770]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.125925, Mean valid f1=0.941272]
+Early Stopping Step : [1 / 5]
+100%|████████████████████| 726/726 [12:50<00:00,  1.06s/it, Epoch=14, Mean train loss=0.025790, Mean train f1=0.984700]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.175872, Mean valid f1=0.939850]
+Early Stopping Step : [2 / 5]
+100%|████████████████████| 726/726 [12:48<00:00,  1.06s/it, Epoch=15, Mean train loss=0.020401, Mean train f1=0.988532]
+100%|██████████████████████████████| 242/242 [03:29<00:00,  1.15it/s, Mean valid loss=0.129867, Mean valid f1=0.943997]
+Early Stopping Step : [3 / 5]
+100%|████████████████████| 726/726 [12:46<00:00,  1.06s/it, Epoch=16, Mean train loss=0.018961, Mean train f1=0.989030]
+100%|██████████████████████████████| 242/242 [03:29<00:00,  1.16it/s, Mean valid loss=0.096495, Mean valid f1=0.956630]
+100%|████████████████████| 726/726 [12:46<00:00,  1.06s/it, Epoch=17, Mean train loss=0.017722, Mean train f1=0.990184]
+100%|██████████████████████████████| 242/242 [03:29<00:00,  1.15it/s, Mean valid loss=0.077091, Mean valid f1=0.962424]
+100%|████████████████████| 726/726 [12:48<00:00,  1.06s/it, Epoch=18, Mean train loss=0.013048, Mean train f1=0.993787]
+100%|██████████████████████████████| 242/242 [03:29<00:00,  1.15it/s, Mean valid loss=0.068273, Mean valid f1=0.963112]
+100%|████████████████████| 726/726 [12:47<00:00,  1.06s/it, Epoch=19, Mean train loss=0.013251, Mean train f1=0.993766]
+100%|██████████████████████████████| 242/242 [03:29<00:00,  1.15it/s, Mean valid loss=0.078078, Mean valid f1=0.962479]
+Early Stopping Step : [1 / 5]
+100%|████████████████████| 726/726 [12:46<00:00,  1.06s/it, Epoch=20, Mean train loss=0.012227, Mean train f1=0.992520]
+100%|██████████████████████████████| 242/242 [03:29<00:00,  1.15it/s, Mean valid loss=0.082207, Mean valid f1=0.962396]
+Early Stopping Step : [2 / 5]
+100%|████████████████████| 726/726 [12:46<00:00,  1.06s/it, Epoch=21, Mean train loss=0.009476, Mean train f1=0.995210]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.083761, Mean valid f1=0.960600]
+Early Stopping Step : [3 / 5]
+100%|████████████████████| 726/726 [12:47<00:00,  1.06s/it, Epoch=22, Mean train loss=0.009664, Mean train f1=0.994635]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.053554, Mean valid f1=0.970145]
+100%|████████████████████| 726/726 [12:47<00:00,  1.06s/it, Epoch=23, Mean train loss=0.010794, Mean train f1=0.994467]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.050610, Mean valid f1=0.972604]
+100%|████████████████████| 726/726 [12:47<00:00,  1.06s/it, Epoch=24, Mean train loss=0.011045, Mean train f1=0.993891]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.065974, Mean valid f1=0.967313]
+Early Stopping Step : [1 / 5]
+100%|████████████████████| 726/726 [12:46<00:00,  1.06s/it, Epoch=25, Mean train loss=0.010180, Mean train f1=0.994978]
+100%|██████████████████████████████| 242/242 [03:29<00:00,  1.15it/s, Mean valid loss=0.050576, Mean valid f1=0.973017]
+100%|████████████████████| 726/726 [12:46<00:00,  1.06s/it, Epoch=26, Mean train loss=0.014682, Mean train f1=0.992117]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.071757, Mean valid f1=0.962881]
+Early Stopping Step : [1 / 5]
+100%|████████████████████| 726/726 [12:47<00:00,  1.06s/it, Epoch=27, Mean train loss=0.010142, Mean train f1=0.994055]
+100%|██████████████████████████████| 242/242 [03:30<00:00,  1.15it/s, Mean valid loss=0.072734, Mean valid f1=0.965925]
+Early Stopping Step : [2 / 5]
+ 43%|████████▋           | 315/726 [05:30<07:11,  1.05s/it, Epoch=28, Mean train loss=0.014981, Mean train f1=0.992046]
+2022-11-05 16:04:00 - {'df_path': '../data/aug_v4_train_df.csv', 'save_path': '../model/effiv2s_aug_v4_mixup', 'model_name': 'efficientnetv2_rw_s', 'num_classes': 88, 'resize': 224, 'device': 'cuda:0', 'early_stopping': 5, 'epochs': 30, 'batch_size': 32, 'learning_rate': 0.0001, 'weight_decay': 0.01, 'cosine_lr_Tmax': 20, 'cosine_lr_eta_min': 1e-05, 'cutmix': False, 'mixup': False, 'resume': False, 'model_path': '../model/effiv2s_aug_v4_mixup/1E_0.8879_1fold_efficientnetv2_rw_s.pt', 'logging': True, 'kfold': 4}
+2022-11-05 16:04:00 - Loading pretrained weights from url (https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/efficientnet_v2s_ra2_288-a6477665.pth)
