@@ -18,16 +18,15 @@
 
 # Index
 
-1. [결과](https://www.notion.so/Computer-Vision-03ad88b7ee6e4145a4a4c2d4cf350d54)
-2. [EDA](https://www.notion.so/Computer-Vision-03ad88b7ee6e4145a4a4c2d4cf350d54)
-3. [사용 모델](https://www.notion.so/Computer-Vision-03ad88b7ee6e4145a4a4c2d4cf350d54)
-4. [사용 기법](https://www.notion.so/Computer-Vision-03ad88b7ee6e4145a4a4c2d4cf350d54)
-5. [자체 Feedback](https://www.notion.so/Computer-Vision-03ad88b7ee6e4145a4a4c2d4cf350d54)
-6. [공부해야할 것들](https://www.notion.so/Computer-Vision-03ad88b7ee6e4145a4a4c2d4cf350d54)
+1. [결과](https://github.com/quhb2455/toy/tree/main/ComputerVision_AnomalyDetection#%EA%B2%B0%EA%B3%BC)
+2. [EDA](https://github.com/quhb2455/toy/tree/main/ComputerVision_AnomalyDetection#eda)
+3. [사용 모델](https://github.com/quhb2455/toy/tree/main/ComputerVision_AnomalyDetection#%EC%82%AC%EC%9A%A9-%EB%AA%A8%EB%8D%B8)
+4. [사용 기법](https://github.com/quhb2455/toy/tree/main/ComputerVision_AnomalyDetection#%EC%82%AC%EC%9A%A9-%EA%B8%B0%EB%B2%95)
+5. [자체 Feedback](https://github.com/quhb2455/toy/tree/main/ComputerVision_AnomalyDetection#feedback)
+6. [공부해야할 것들](https://github.com/quhb2455/toy/tree/main/ComputerVision_AnomalyDetection#%EA%B3%B5%EB%B6%80%ED%95%B4%EC%95%BC%ED%95%A0-%EA%B2%83%EB%93%A4)
 
 # 결과
 
----
 
 - Public Score : 전체 테스트 데이터 중 33%
     - 전체 등수 : 66 / 481 (상위 13.7%)
@@ -45,7 +44,6 @@
 
 # EDA
 
----
 
 ```
 data
@@ -119,7 +117,6 @@ data
 
 # 사용 모델
 
----
 
 ## EfficientNetV2-S
 
@@ -145,7 +142,6 @@ data
 
 # 사용 기법
 
----
 
 ### Data Augmentation
 
@@ -183,7 +179,6 @@ data
 
 # Feedback
 
----
 
 ### 못했던 점
 
@@ -216,7 +211,6 @@ data
 
 # 공부해야할 것들
 
----
 
 - CaiT: Going deeper with Image Transformers
 - Wandb
