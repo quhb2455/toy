@@ -10,3 +10,4 @@
 *.jpeg
 3D_Number_Image_Classification/data/
 *.gif
+3D_Number_Image_Classification/tensorboard/
