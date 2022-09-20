@@ -9,12 +9,12 @@ class config:
     device="cuda"
 
     # maxiumum number of points per voxel
-    T=35
+    T=42
 
     # voxel size
-    vd = 0.1
-    vh = 0.1
-    vw = 0.1
+    vd = 0.05
+    vh = 0.05
+    vw = 0.05
 
     # Training set points cloud range
     # train_xrange = (-0.1579, 0.1579)

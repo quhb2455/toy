@@ -3,3 +3,5 @@
 *.pth
 *.json
 *.h5
+tensorboard/
+data/
