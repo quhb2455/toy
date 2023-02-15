@@ -66,6 +66,8 @@ class Trainer() :
                 img, lam, label_a, label_b = cutmix(img, label)
                 # output, batch_output = self.model(img)
                 output = self.model(img)
+                # output = output.squeeze(1)
+                
                 loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
             else:
                 # output, batch_output = self.model(img)
@@ -77,7 +79,7 @@ class Trainer() :
 
             # acc = new_batch_score(label, output, self.args.THRESHOLD)
             # print(batch_acc)
-            acc = score(label, output)#, self.args.THRESHOLD)
+            acc = score(label, output, self.args.THRESHOLD)
             # print(acc)
 
             train_acc.append(acc)
@@ -106,10 +108,12 @@ class Trainer() :
 
                 # output, batch_output = self.model(img)
                 output = self.model(img)
+                # output = output.squeeze(1)
+
                 loss = self.criterion(output, label)
 
                 # acc = new_batch_score(label, output, self.args.THRESHOLD)
-                acc = score(label, output)#, self.args.THRESHOLD)
+                acc = score(label, output, self.args.THRESHOLD)
 
                 val_acc.append(acc)
                 val_loss.append(loss.item())
@@ -126,7 +130,7 @@ class Trainer() :
                 }
                 logging(self.log_writter, data, epoch * len(self.val_loader) + batch)
                 
-        self.model_save(epoch, acc)
+        self.model_save(epoch, np.mean(val_acc))
 
     def kfold_setup(self, model, optimizer, criterion, train_ind, valid_ind, kfold):
         self.model = model
@@ -167,6 +171,7 @@ class Trainer() :
                 "model_state_dict": self.model.state_dict(),
                 "optimizer_state_dict": self.optimizer.state_dict()
             }, os.path.join(self.save_path, str(epoch) + 'E-val' + str(self.best_score) + '-' + self.args.MODEL_NAME + '.pth'))
+            self.early_stop_cnt = 0
         else :
             self.early_stop_cnt += 1
 

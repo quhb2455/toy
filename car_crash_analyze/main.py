@@ -1,6 +1,7 @@
 import os
 import argparse
 import torch
+import torch.nn as nn
 from sklearn.model_selection import StratifiedKFold
 
 from trainer import Trainer
@@ -24,6 +25,8 @@ def main(args):
         optimizer = torch.optim.Adam(model.parameters(),
                                      lr=args.LEARNING_RATE)
         criterion = FocalLoss(args.FOCAL_GAMMA, args.FOCAL_ALPHA)
+        # criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.13242574]).to(device=device, dtype=torch.float))
+
         if args.KFOLD == 0:
             trainer = Trainer(model, optimizer, criterion, device, args)
             trainer.run()
@@ -52,32 +55,32 @@ if __name__ == "__main__" :
 
 
     # common
-    parser.add_argument("--BATCH_SIZE", type=int, default=50)
+    parser.add_argument("--BATCH_SIZE", type=int, default=64)
     parser.add_argument("--MODEL_NAME", type=str, default='efficientnet_b0')
-    parser.add_argument("--NUM_CLASSES", type=int, default=13)
+    parser.add_argument("--NUM_CLASSES", type=int, default=3)
 
     parser.add_argument("--IMG_PATH", type=str, default="./data/50frame_train/*")
-    parser.add_argument("--CSV_PATH", type=str, default="./data/50frame_train.csv",
+    parser.add_argument("--CSV_PATH", type=str, default="./data/50f_EgoCrash_train.csv",
                         help='For test, using sample_submission.csv file')
-    parser.add_argument("--OUTPUT", type=str, default='./ckpt/50frame_effib0_224',
+    parser.add_argument("--OUTPUT", type=str, default='./ckpt/50f_EgoCrash_effib0_224',
                         help='For train, checkpoint save path \\'
                              'For test, predicted label save path')
     # train
     train_parser = subparsers.add_parser('train')
     train_parser.add_argument("--LEARNING_RATE", type=float, default=1e-4)
     train_parser.add_argument("--EPOCHS", type=int, default=70)
-    train_parser.add_argument("--APPLY_CUTMIX", type=bool, default=False)
+    train_parser.add_argument("--APPLY_CUTMIX", type=bool, default=True)
     train_parser.add_argument("--THRESHOLD", type=float, default=0.5)
-    train_parser.add_argument("--SHUFFLE", type=bool, default=False)
-    train_parser.add_argument("--STACK", type=bool, default=True)
-    train_parser.add_argument("--IN_CHANNEL", type=int, default=150)
+    train_parser.add_argument("--SHUFFLE", type=bool, default=True)
+    train_parser.add_argument("--STACK", type=bool, default=False)
+    train_parser.add_argument("--IN_CHANNEL", type=int, default=3)
     # train_parser.add_argument("--CTL_STEP", nargs="+", type=int, default=[36, 61])
-    train_parser.add_argument("--FOCAL_GAMMA", type=int, default=2)
+    train_parser.add_argument("--FOCAL_GAMMA", type=int, default=3)
     train_parser.add_argument("--FOCAL_ALPHA", type=int, default=2)
     train_parser.add_argument("--KFOLD", type=int, default=0)
-    train_parser.add_argument("--LOG", type=str, default='./tensorboard/50frame_effib0_224')
+    train_parser.add_argument("--LOG", type=str, default='./tensorboard/50f_EgoCrash_effib0_224')
     train_parser.add_argument("--REUSE", type=bool, default=False)
-    train_parser.add_argument("--CHECKPOINT", type=str, default='./ckpt/3E-val0.8645-efficientnet_b0.pth')
+    train_parser.add_argument("--CHECKPOINT", type=str, default='./ckpt/50f_weather_effib0_224/6E-val0.9193548387096774-efficientnet_b0.pth')
     train_parser.add_argument("--START_EPOCH", type=int, default=0)
 
     # test

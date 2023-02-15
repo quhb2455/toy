@@ -29,7 +29,12 @@ class CustomDataset(Dataset):
         # print(img_path)
         # image = cv2.imread(os.path.join('./data', *img_path.split('/')[2:]))
         image = cv2.imread(img_path)
-
+        h, w = image.shape[:2]
+        upper = int(h/2) - int(h * 0.2)
+        bottom = int(h/2) + int(h * 0.4)
+        
+        image = image[upper:bottom, :, :]
+        
         if self.transform :
             image = self.transform(image=image)['image']
         # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -86,7 +91,12 @@ def transform_parser(grid_shuffle_p=0.8, data_type='train') :
     if data_type == 'train' :
         return A.Compose([
             A.Resize(224, 224),
-            A.Rotate(limit=(45), p=1),
+            A.Blur(blur_limit=(5, 5), p=1),
+            A.OneOf([
+                A.Rotate(limit=(45), p=1),
+                A.HorizontalFlip(p=1),
+                A.VerticalFlip(p=1),
+            ]),
             # A.RandomGridShuffle(p=grid_shuffle_p, grid=(2,2)),
             A.Normalize(),
             ToTensorV2()
@@ -130,9 +140,9 @@ def custom_dataload(df_set, label_set, batch_size, data_type, shuffle, stack) :
     transform = transform_parser(data_type=data_type)
     ds = CustomDataset(df_set, label_set, transform)
     if stack :
-        dl = DataLoader(ds, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn, num_workers=6)
+        dl = DataLoader(ds, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn, num_workers=1)
     else :
-        dl = DataLoader(ds, batch_size=batch_size, shuffle=shuffle, num_workers=6)
+        dl = DataLoader(ds, batch_size=batch_size, shuffle=shuffle, num_workers=1)
     return dl
 
 

@@ -104,12 +104,13 @@ def new_batch_score(true_labels, model_preds, threshold) :
     # return f1_score(true_labels, model_preds, average='macro')
 
 def score(true_labels, model_preds, threshold=None) :
-    # model_preds = softmax2binary(F.softmax(model_preds.detach().cpu(), dim=0), threshold)
+    # model_preds = sigmoid2binary(torch.sigmoid(model_preds.detach().cpu()), threshold)
     # print("model_preds : ",model_preds)
 
     # model_preds = torch.sigmoid(model_preds.detach().cpu())
     model_preds = model_preds.argmax(1).detach().cpu().numpy().tolist()
     true_labels = true_labels.detach().cpu().numpy().tolist()
+
     # print("true_labels : ",true_labels)
     # print("model_preds : ",model_preds)
     return accuracy_score(true_labels, model_preds)#1 - abs(true_labels[0] - model_preds[0])
@@ -164,5 +165,5 @@ def mixup(imgs, labels):
     mixed_imgs = lam * imgs + (1 - lam) * imgs[rand_index, :]
     target_a, target_b = labels, labels[rand_index]
 
-    return mixed_imgs, lam, target_a, target_b
+    return mixed_imgs, lam, target_a.float(), target_b.float()
 

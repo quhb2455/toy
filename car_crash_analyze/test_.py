@@ -73,4 +73,4 @@ if __name__ == '__main__':
     for img, label in tqdm(dl23) :
         print(img.shape)
         print(label.shape)
-        # break
+        break
