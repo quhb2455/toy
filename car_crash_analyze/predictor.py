@@ -13,20 +13,23 @@ from models import simple_NN
 
 class Predictor() :
     def __init__ (self, model, device, args) :
-        self.model = get_models(model, args.CHECKPOINT)
-        self.test_loader, self.df = self.get_dataloader(args.CSV_PATH, args.IMG_PATH, args.BATCH_SIZE)
+        self._type = args.TYPE
         self.ensemble = args.ENSEMBLE
         self.save_path = args.OUTPUT
         self.batch_size = args.BATCH_SIZE
         self.device = device
-        self.type = args.TYPE
+        
+        self.model = get_models(model, args.CHECKPOINT)
+        self.test_loader, self.df = self.get_dataloader(args.CSV_PATH, args.IMG_PATH, args.BATCH_SIZE)
+
+        
     def run(self):
         if self.ensemble == 'soft':
             return self.ensemble_predict_softVoting()
 
         elif self.ensemble == 'hard':
             return self.ensemble_predict_hardVoting()
-
+        
         elif self.ensemble is None:
             return self.predict()
 
@@ -40,10 +43,7 @@ class Predictor() :
                 img = img.to(self.device)
                 preds = self.model(img)
                 
-                
-                
-                
-                if self.type =='each' :
+                if self._type =='each' :
                     pred_v, pred_ind = preds.max(1)
 
                     model_preds += pred_v.detach().cpu().numpy().tolist()
@@ -93,12 +93,29 @@ class Predictor() :
 
                 model_preds += batch_preds_label[best_score_ind[batch_len], batch_len].tolist()
         return model_preds
-
+    
+    def triple_model_predict(self, model_1, model_2, model_3) :
+        model_preds = [[], [], []]
+        with torch.no_grad():
+            for img, img_2 in tqdm(self.test_loader):
+                img = img.to(self.device)
+                img_2 = img_2.to(self.device)
+                
+                preds = [model_1(img), model_2(img_2), model_3(img)]
+                
+                for idx, pred in enumerate(preds) :
+                    if idx == 0 :
+                        model_preds[idx] += int(sigmoid2binary(torch.sigmoid(pred.detach().cpu()), 0.5))
+                    else :
+                        model_preds[idx] += pred.argmax(1).detach().cpu().numpy().tolist()
+        
+        return model_preds
+    
     def get_dataloader(self, csv_path, img_path, batch_size):
         # transform = transform_parser()
         # img_set = glob(img_path)
         df = pd.read_csv(csv_path)
-        stack = True if self.type == 'stack' else False
+        stack = True if self._type == 'stack' else False
         # img_set, df, transform = image_label_dataset(csv_path, img_path,
         #                                              grid_shuffle_p=0, training=False)
         return custom_dataload(df, None, batch_size, data_type='valid', shuffle=False, stack=stack), df
@@ -130,7 +147,16 @@ if __name__ == "__main__" :
 
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    model = simple_NN(args.MODEL_NAME, num_classes=13).to(device)
+    triple = True
+    if triple :
+        model_1 = simple_NN(args.MODEL_NAME, num_classes=1).to(device)
+        model_2 = simple_NN(args.MODEL_NAME, num_classes=3).to(device)
+        model_3 = simple_NN(args.MODEL_NAME, num_classes=3).to(device)
+        
+        predictor = Predictor(model, device, args)
+        preds = predictor.triple_model_predict(model_1, model_2, model_3)
+    else :
+        model = simple_NN(args.MODEL_NAME, num_classes=13).to(device)
 
     predictor = Predictor(model, device, args)
 

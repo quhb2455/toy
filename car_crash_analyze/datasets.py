@@ -37,6 +37,7 @@ class CustomDataset(Dataset):
         
         if self.transform :
             image = self.transform(image=image)['image']
+            # image_2 = self.transform(image=image_2)['image']
         # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         if self.labels is not None:
@@ -44,7 +45,7 @@ class CustomDataset(Dataset):
             return image, label
 
         else:
-            return image
+            return image#, image_2
     
 def collate_fn(batch):
     img_stack = []
@@ -140,9 +141,9 @@ def custom_dataload(df_set, label_set, batch_size, data_type, shuffle, stack) :
     transform = transform_parser(data_type=data_type)
     ds = CustomDataset(df_set, label_set, transform)
     if stack :
-        dl = DataLoader(ds, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn, num_workers=1)
+        dl = DataLoader(ds, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn, num_workers=6)
     else :
-        dl = DataLoader(ds, batch_size=batch_size, shuffle=shuffle, num_workers=1)
+        dl = DataLoader(ds, batch_size=batch_size, shuffle=shuffle, num_workers=6)
     return dl
 
 
