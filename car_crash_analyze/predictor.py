@@ -17,6 +17,7 @@ class Predictor() :
         self.ensemble = args.ENSEMBLE
         self.save_path = args.OUTPUT
         self.batch_size = args.BATCH_SIZE
+        self.num_classes = args.NUM_CLASSES
         self.device = device
         
         self.model = get_models(model, args.CHECKPOINT)
@@ -48,7 +49,8 @@ class Predictor() :
 
                     model_preds += pred_v.detach().cpu().numpy().tolist()
                     model_preds_ind += pred_ind.detach().cpu().numpy().tolist()
-                
+                elif self.num_classes == 1 :
+                    model_preds += sigmoid2binary(torch.sigmoid(preds.detach().cpu()), 0.5)
                 else :
                     model_preds += preds.argmax(1).detach().cpu().numpy().tolist()
                 
@@ -97,15 +99,15 @@ class Predictor() :
     def triple_model_predict(self, model_1, model_2, model_3) :
         model_preds = [[], [], []]
         with torch.no_grad():
-            for img, img_2 in tqdm(self.test_loader):
+            for img in tqdm(self.test_loader):
                 img = img.to(self.device)
-                img_2 = img_2.to(self.device)
+                # img_2 = img_2.to(self.device)
                 
-                preds = [model_1(img), model_2(img_2), model_3(img)]
+                preds = [model_1(img), model_2(img), model_3(img)]
                 
                 for idx, pred in enumerate(preds) :
                     if idx == 0 :
-                        model_preds[idx] += int(sigmoid2binary(torch.sigmoid(pred.detach().cpu()), 0.5))
+                        model_preds[idx] += sigmoid2binary(torch.sigmoid(pred.detach().cpu()), 0.5)
                     else :
                         model_preds[idx] += pred.argmax(1).detach().cpu().numpy().tolist()
         
@@ -124,19 +126,20 @@ class Predictor() :
 
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument("--BATCH_SIZE", type=int, default=64)
+    parser.add_argument("--BATCH_SIZE", type=int, default=16)
     parser.add_argument("--MODEL_NAME", type=str, default='efficientnet_b0')
     parser.add_argument("--ENSEMBLE", type=str, default=None)
-    parser.add_argument("--TYPE", type=str, default='each', 
+    parser.add_argument("--TYPE", type=str, default=None, 
         help='each = 50개(1 video = 50frame) frame을 평균내서 가장 높은 값을 가진 클래스를 할당\
             stack = 50개 frame을 채널 단위로 겹쳐서 추론')
 
     parser.add_argument("--IMG_PATH", type=str, default="./data/new_train/*")
-    parser.add_argument("--CSV_PATH", type=str, default="./data/new_test.csv")
+    parser.add_argument("--CSV_PATH", type=str, default="./data/mosaic_EgoCrash_test.csv")
     parser.add_argument("--SUBMIT",type=str,default="./data/sample_submission.csv")
-    parser.add_argument("--OUTPUT", type=str, default='./results/div_2width_effib0_224.csv')
+    parser.add_argument("--OUTPUT", type=str, default='./results/50f_weather_0.15Normal_moreAug_effib0_224.csv')
     parser.add_argument("--CHECKPOINT",  nargs="+", type=str, 
-                        default=["./ckpt/div_2width_effib0_224/1E-val1.0-efficientnet_b0.pth"])                        # default=['./ckpt/58E-val0.957-efficientnet_b0.pth',
+                        default=["./ckpt/50f_weather_0.15Normal_moreAug_effib0_224/12E-val0.9833984375-efficientnet_b0.pth"])
+                        # default=['./ckpt/58E-val0.957-efficientnet_b0.pth',
                         #          './ckpt/55E-val0.9542-efficientnet_b0.pth',
                         #          './ckpt/53E-val0.9537-efficientnet_b0.pth',
                         #          './ckpt/49E-val0.953-efficientnet_b0.pth',
@@ -147,7 +150,7 @@ if __name__ == "__main__" :
 
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    triple = True
+    triple = False
     if triple :
         model_1 = simple_NN(args.MODEL_NAME, num_classes=1).to(device)
         model_2 = simple_NN(args.MODEL_NAME, num_classes=3).to(device)
@@ -156,7 +159,7 @@ if __name__ == "__main__" :
         predictor = Predictor(model, device, args)
         preds = predictor.triple_model_predict(model_1, model_2, model_3)
     else :
-        model = simple_NN(args.MODEL_NAME, num_classes=13).to(device)
+        model = simple_NN(args.MODEL_NAME, num_classes=3).to(device)
 
     predictor = Predictor(model, device, args)
 
@@ -164,5 +167,5 @@ if __name__ == "__main__" :
     
     save_to_csv(
         read_csv(args.SUBMIT), 
-        get_each_frame_infer_result(pred_value, pred_index), 
+        pred_value, #get_each_frame_infer_result(pred_value, pred_index), 
         args.OUTPUT)

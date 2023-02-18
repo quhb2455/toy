@@ -29,15 +29,15 @@ class CustomDataset(Dataset):
         # print(img_path)
         # image = cv2.imread(os.path.join('./data', *img_path.split('/')[2:]))
         image = cv2.imread(img_path)
-        h, w = image.shape[:2]
-        upper = int(h/2) - int(h * 0.2)
-        bottom = int(h/2) + int(h * 0.4)
+        # h, w = image.shape[:2]
+        # upper = int(h/2) - int(h * 0.2)
+        # bottom = int(h/2) + int(h * 0.4)
         
-        image = image[upper:bottom, :, :]
+        # image_2 = image[upper:bottom, :, :]
         
         if self.transform :
             image = self.transform(image=image)['image']
-            # image_2 = self.transform(image=image_2)['image']
+            #image_2 = self.transform(image=image_2)['image']
         # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         if self.labels is not None:
@@ -91,14 +91,24 @@ def divided_train_val(df, stack=False):
 def transform_parser(grid_shuffle_p=0.8, data_type='train') :
     if data_type == 'train' :
         return A.Compose([
-            A.Resize(224, 224),
-            A.Blur(blur_limit=(5, 5), p=1),
-            A.OneOf([
-                A.Rotate(limit=(45), p=1),
-                A.HorizontalFlip(p=1),
-                A.VerticalFlip(p=1),
-            ]),
-            # A.RandomGridShuffle(p=grid_shuffle_p, grid=(2,2)),
+            
+            # ego+crash mosaic 핛브용
+            A.Resize(512, 512),
+            # A.OneOf([
+            #     A.CLAHE(p=0.5),
+            #     A.ImageCompression(p=0.5),
+            #     A.RandomBrightnessContrast(p=0.5)
+            # ],p=1),
+            
+
+            # weather 학습 용
+            # A.Resize(384, 384),
+            # A.OneOf([
+            #     A.Blur(blur_limit=(3, 3)),
+            # ], p=1),
+            # A.Spatter(p=0.5, mode=['rain', 'mude']),
+            A.RandomGridShuffle(p=0.6, grid=(7, 7)),
+
             A.Normalize(),
             ToTensorV2()
         ])

@@ -165,5 +165,5 @@ def mixup(imgs, labels):
     mixed_imgs = lam * imgs + (1 - lam) * imgs[rand_index, :]
     target_a, target_b = labels, labels[rand_index]
 
-    return mixed_imgs, lam, target_a.float(), target_b.float()
+    return mixed_imgs, lam, target_a, target_b
 

@@ -69,6 +69,15 @@ class Trainer() :
                 # output = output.squeeze(1)
                 
                 loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
+            
+            elif self.args.APPLY_MIXUP:
+                img, lam, label_a, label_b = mixup(img, label)
+                # output, batch_output = self.model(img)
+                output = self.model(img)
+                # output = output.squeeze(1)
+                
+                loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
+                
             else:
                 # output, batch_output = self.model(img)
                 output = self.model(img)
