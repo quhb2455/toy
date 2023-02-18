@@ -94,11 +94,11 @@ def transform_parser(grid_shuffle_p=0.8, data_type='train') :
             
             # ego+crash mosaic 핛브용
             A.Resize(512, 512),
-            # A.OneOf([
-            #     A.CLAHE(p=0.5),
-            #     A.ImageCompression(p=0.5),
-            #     A.RandomBrightnessContrast(p=0.5)
-            # ],p=1),
+            A.OneOf([
+                A.CLAHE(p=0.5),
+                A.ImageCompression(p=0.5),
+                A.RandomBrightnessContrast(p=0.5)
+            ],p=1),
             
 
             # weather 학습 용
@@ -107,14 +107,14 @@ def transform_parser(grid_shuffle_p=0.8, data_type='train') :
             #     A.Blur(blur_limit=(3, 3)),
             # ], p=1),
             # A.Spatter(p=0.5, mode=['rain', 'mude']),
-            A.RandomGridShuffle(p=0.6, grid=(7, 7)),
+            # A.RandomGridShuffle(p=0.6, grid=(7, 7)),
 
             A.Normalize(),
             ToTensorV2()
         ])
     elif data_type == 'valid' :
         return A.Compose([
-            A.Resize(224, 224),
+            A.Resize(512, 512),
             # A.Rotate(limit=(45), p=1),
             # A.RandomGridShuffle(p=grid_shuffle_p, grid=(2,2)),
             A.Normalize(),

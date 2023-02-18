@@ -8,7 +8,7 @@ from trainer import Trainer
 from predictor import Predictor
 
 from utils import *
-from models import simple_NN
+from models import simple_NN, WEATHER_MODEL
 from loss_fn import FocalLoss
 
 def main(args):
@@ -17,13 +17,14 @@ def main(args):
         model_name=args.MODEL_NAME, 
         num_classes=args.NUM_CLASSES, 
         in_chans=args.IN_CHANNEL).to(device)
-
+    # model = WEATHER_MODEL(num_classes=args.NUM_CLASSES).to(device)
     if args.MODE == 'train' :
         os.makedirs(args.OUTPUT, exist_ok=True)
         save_config(vars(args), args.OUTPUT)
 
         optimizer = torch.optim.Adam(model.parameters(),
                                      lr=args.LEARNING_RATE)
+        # criterion = nn.CrossEntropyLoss(weight=torch.tensor([2.1703, 1.0000, 1.8429])).to(device)
         criterion = FocalLoss(args.FOCAL_GAMMA, args.FOCAL_ALPHA)
         # criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.13242574]).to(device=device, dtype=torch.float))
 
@@ -55,14 +56,14 @@ if __name__ == "__main__" :
 
 
     # common
-    parser.add_argument("--BATCH_SIZE", type=int, default=16)
-    parser.add_argument("--MODEL_NAME", type=str, default='efficientnet_b0')
+    parser.add_argument("--BATCH_SIZE", type=int, default=8)
+    parser.add_argument("--MODEL_NAME", type=str, default='efficientnet_b4')#
     parser.add_argument("--NUM_CLASSES", type=int, default=3)
 
-    parser.add_argument("--IMG_PATH", type=str, default="./data/50frame_train/*")
-    parser.add_argument("--CSV_PATH", type=str, default="./data/50f_weather_0.15Normal_train.csv",
+    parser.add_argument("--IMG_PATH", type=str, default="./data/mosaic_train/*")
+    parser.add_argument("--CSV_PATH", type=str, default="./data/mosaic_EgoCrash_train.csv",
                         help='For test, using sample_submission.csv file')
-    parser.add_argument("--OUTPUT", type=str, default='./ckpt/50f_weather_0.15Normal_PixLevelAug_GridShuffle_effib0_512',
+    parser.add_argument("--OUTPUT", type=str, default='./ckpt/mosaic_EgoCrash_effib4_512',
                         help='For train, checkpoint save path \\'
                              'For test, predicted label save path')
     # train
@@ -79,9 +80,9 @@ if __name__ == "__main__" :
     train_parser.add_argument("--FOCAL_GAMMA", type=int, default=2)
     train_parser.add_argument("--FOCAL_ALPHA", type=int, default=2)
     train_parser.add_argument("--KFOLD", type=int, default=0)
-    train_parser.add_argument("--LOG", type=str, default='./tensorboard/50f_weather_0.15Normal_PixLevelAug_GridShuffle_effib0_512')
+    train_parser.add_argument("--LOG", type=str, default='./tensorboard/mosaic_EgoCrash_effib4_512')
     train_parser.add_argument("--REUSE", type=bool, default=False)
-    train_parser.add_argument("--CHECKPOINT", type=str, default='./ckpt/50f_weather_effib0_224/6E-val0.9193548387096774-efficientnet_b0.pth')
+    train_parser.add_argument("--CHECKPOINT", type=str, default='./ckpt/NewWeatherModel_PixLevelAug_GridShuffle_effi2m_512/6E-val0.9193548387096774-efficientnet_b0.pth')
     train_parser.add_argument("--START_EPOCH", type=int, default=0)
 
     # test

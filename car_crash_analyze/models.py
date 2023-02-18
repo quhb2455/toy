@@ -53,3 +53,90 @@ class simple_NN(nn.Module):
         x = self.model(x)
         return x
 
+class _WEATHER_MODEL(nn.Module) :
+    def __init__(self, num_classes) -> None:
+        super().__init__()
+        self.backbone = timm.models.efficientnet_b0(pretrained=True, features_only=True, out_indices=(2,3,4))
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(40, 256, kernel_size=5, stride=2, padding=0),
+            nn.ReLU(),
+            nn.Conv2d(256, 128, kernel_size=5, stride=2, padding=0),
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(1)
+        )
+        
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(112, 256, kernel_size=5, stride=2, padding=0),
+            nn.ReLU(),
+            nn.Conv2d(256, 128, kernel_size=5, stride=2, padding=0),
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(1)
+        )
+        self.conv3 = nn.Sequential(
+            # nn.Conv2d(320, 256, kernel_size=5, stride=2, padding=0),
+            # nn.ReLU(),
+            # nn.Conv2d(256, 128, kernel_size=5, stride=2, padding=0),
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(1)
+        )
+        
+        self.cls_head = nn.Sequential(
+            nn.Linear(576, 128),
+            nn.ELU(),
+            nn.Linear(128, num_classes)
+        )
+        
+    def forward(self, x) :
+        outpus = self.backbone(x)
+        
+        o1 = self.conv1(outpus[0])
+        o2 = self.conv2(outpus[1])
+        o3 = self.conv3(outpus[2])
+        
+        output = self.cls_head(torch.cat([o1, o2, o3], dim=1))
+        return output 
+
+class WEATHER_MODEL(nn.Module) :
+    def __init__(self, num_classes) -> None:
+        super().__init__()
+        # self.backbone = timm.models.efficientnet_b0(pretrained=True, features_only=True, out_indices=(2,3,4))
+        self.backbone = timm.models.efficientnetv2_rw_s(pretrained=True, features_only=True, out_indices=(2,3,4))
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(64, 256, kernel_size=5, stride=2, padding=0),
+            nn.ReLU(),
+            nn.Conv2d(256, 128, kernel_size=5, stride=2, padding=0),
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(1)
+        )
+        
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(160, 256, kernel_size=5, stride=2, padding=0),
+            nn.ReLU(),
+            nn.Conv2d(256, 128, kernel_size=5, stride=2, padding=0),
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(1)
+        )
+        self.conv3 = nn.Sequential(
+            # nn.Conv2d(320, 256, kernel_size=5, stride=2, padding=0),
+            # nn.ReLU(),
+            # nn.Conv2d(256, 128, kernel_size=5, stride=2, padding=0),
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(1)
+        )
+        
+        self.cls_head = nn.Sequential(
+            nn.Linear(528, 128),
+            nn.ELU(),
+            nn.Linear(128, num_classes)
+        )
+        
+    def forward(self, x) :
+        outpus = self.backbone(x)
+        
+        o1 = self.conv1(outpus[0])
+        o2 = self.conv2(outpus[1])
+        o3 = self.conv3(outpus[2])
+        
+        output = self.cls_head(torch.cat([o1, o2, o3], dim=1))
+        return output 
+        
