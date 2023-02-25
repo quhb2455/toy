@@ -10,8 +10,51 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 
 import torch
+import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
+class PathWay(nn.Module) :
+    def __init__(self, slowfast_alpha=4) -> None:
+        super().__init__()
+        self.slowfast_alpha = slowfast_alpha
+    def forward(self, frames) :
+        fast_way = frames
+        slow_way = torch.index_select(
+            frames, 
+            1, 
+            torch.linspace(0, frames.shape[1] - 1, frames.shape[1] // self.slowfast_alpha).long()
+        )
+        frame_list = [slow_way, fast_way]
+        return frame_list
+    
+class VideoDataset(Dataset):
+    def __init__(self, video_path, label, transform=None) -> None:
+        super().__init__()
+        self.video_path = video_path
+        self.label = label
+        self.transform = transform
+        self.datalayer = PsthWay()
+    def __len__(self):
+        return len(self.video_path)
+    
+    def __getitem__(self, idx: Any):
+        label = self.label[idx]
+        path = self.video_path[idx]
+        cap = cv2.VideoCapture(path)
+        _frames = []
+        while(cap.isOpened()) :
+            ret, frame = cap.read()
+            
+            if ret  :
+                _frames.append(self.transform(image=frame)['image'])
+            else :
+                break
+        frames = self.datalayer(torch.stack(_frames).permute(1, 0, 2, 3))
+        
+        if self.label == None :
+            return frames 
+        else :
+            return frames, label
 
 class CustomDataset(Dataset):
     def __init__(self, _df, labels, transform=None):
@@ -30,10 +73,11 @@ class CustomDataset(Dataset):
         # image = cv2.imread(os.path.join('./data', *img_path.split('/')[2:]))
         image = cv2.imread(img_path)
         # h, w = image.shape[:2]
-        # upper = int(h/2) - int(h * 0.2)
-        # bottom = int(h/2) + int(h * 0.4)
+        # upper = int(h/2) - int(h * 0.3)
+        # bottom = int(h/2) + int(h * 0.3)
         
         # image_2 = image[upper:bottom, :, :]
+        # image = image[upper:bottom, :, :]
         
         if self.transform :
             image = self.transform(image=image)['image']
@@ -46,6 +90,7 @@ class CustomDataset(Dataset):
 
         else:
             return image#, image_2
+    
     
 def collate_fn(batch):
     img_stack = []
@@ -88,33 +133,66 @@ def divided_train_val(df, stack=False):
         )
         return train_df, val_df, train_labels.tolist(), val_labels.tolist()
 
-def transform_parser(grid_shuffle_p=0.8, data_type='train') :
+def transform_parser(grid_shuffle_p=0.8, resize=384, data_type='train') :
     if data_type == 'train' :
         return A.Compose([
             
             # ego+crash mosaic 핛브용
-            A.Resize(512, 512),
+            A.Resize(resize, resize),
             A.OneOf([
-                A.CLAHE(p=0.5),
-                A.ImageCompression(p=0.5),
-                A.RandomBrightnessContrast(p=0.5)
+                A.CLAHE(p=1),
+                A.ImageCompression(p=1),
+                
             ],p=1),
+            A.RandomBrightnessContrast(brightness_limit=(-0.3, -0.1), p=1),
+            A.OneOf([
+                
+                A.GridDistortion(p=1, 
+                    always_apply=False, 
+                    num_steps=1, 
+                    # img 굴곡 조정
+                    distort_limit=(-0.1, 0.3), 
+                    interpolation=2, 
+                    border_mode=2, 
+                    value=(0, 0, 0), 
+                    mask_value=None),
+                
+                A.OpticalDistortion(p=1,
+                    distort_limit=0.4, shift_limit=0.04),    
+                
+            ],p=0.5),
             
-
+            A.ElasticTransform(p=0.7, 
+                alpha=120, sigma=120 * 0.1, alpha_affine=120 * 0.1),
+            
+            A.Affine(p=0.6,
+                scale=(1,1.1), # 이미지 크기 조정
+                translate_percent=(-0.01, 0.01), # 이미지 이동
+                translate_px=None, # 픽셀단위로 이미지 이동
+                rotate=(-15, 15), # 회전 각도 조절
+                shear=None, # 잡아당기는 효과
+                interpolation=1, 
+                mask_interpolation=0, 
+                cval=5, cval_mask=5, 
+                mode=0, # 회전 할 떄 남은 부분 색으로 채우기
+                fit_output=False, # 사진에 맞게 그리기
+                always_apply=False),    
+            
+            
             # weather 학습 용
-            # A.Resize(384, 384),
+
             # A.OneOf([
             #     A.Blur(blur_limit=(3, 3)),
             # ], p=1),
-            # A.Spatter(p=0.5, mode=['rain', 'mude']),
-            # A.RandomGridShuffle(p=0.6, grid=(7, 7)),
+            A.Spatter(p=0.7, mode=['rain']),
+            A.RandomGridShuffle(p=0.6, grid=(7, 7)),
 
             A.Normalize(),
             ToTensorV2()
         ])
     elif data_type == 'valid' :
         return A.Compose([
-            A.Resize(512, 512),
+            A.Resize(resize, resize),
             # A.Rotate(limit=(45), p=1),
             # A.RandomGridShuffle(p=grid_shuffle_p, grid=(2,2)),
             A.Normalize(),
@@ -147,9 +225,11 @@ def image_label_dataset(df_path, img_path, div=0.8, grid_shuffle_p=0.8, training
         return img, all_df, transform
 
 
-def custom_dataload(df_set, label_set, batch_size, data_type, shuffle, stack) :
-    transform = transform_parser(data_type=data_type)
+def custom_dataload(df_set, label_set, batch_size, data_type, shuffle, stack, resize) :
+    transform = transform_parser(data_type=data_type, resize=resize)
+    
     ds = CustomDataset(df_set, label_set, transform)
+        
     if stack :
         dl = DataLoader(ds, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn, num_workers=6)
     else :
@@ -157,7 +237,7 @@ def custom_dataload(df_set, label_set, batch_size, data_type, shuffle, stack) :
     return dl
 
 
-def train_and_valid_dataload(df_set, label_set, batch_size=16, shuffle=True, stack=False) :
-    train_loader = custom_dataload(df_set[0], label_set[0], batch_size, 'train', shuffle, stack)
-    val_loader = custom_dataload(df_set[1], label_set[1], batch_size, 'valid', False, stack)
+def train_and_valid_dataload(df_set, label_set, batch_size=16, shuffle=True, stack=False, resize=384) :
+    train_loader = custom_dataload(df_set[0], label_set[0], batch_size, 'train', shuffle, stack, resize)
+    val_loader = custom_dataload(df_set[1], label_set[1], batch_size, 'valid', False, stack, resize)
     return train_loader, val_loader

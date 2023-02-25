@@ -113,7 +113,7 @@ def score(true_labels, model_preds, threshold=None) :
 
     # print("true_labels : ",true_labels)
     # print("model_preds : ",model_preds)
-    return accuracy_score(true_labels, model_preds)#1 - abs(true_labels[0] - model_preds[0])
+    return f1_score(true_labels, model_preds, average='macro')#1 - abs(true_labels[0] - model_preds[0])
     # if model_preds == true_labels :
     #     return 1
     # else :

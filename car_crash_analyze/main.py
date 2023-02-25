@@ -22,7 +22,7 @@ def main(args):
         os.makedirs(args.OUTPUT, exist_ok=True)
         save_config(vars(args), args.OUTPUT)
 
-        optimizer = torch.optim.Adam(model.parameters(),
+        optimizer = torch.optim.RAdam(model.parameters(),
                                      lr=args.LEARNING_RATE)
         # criterion = nn.CrossEntropyLoss(weight=torch.tensor([2.1703, 1.0000, 1.8429])).to(device)
         criterion = FocalLoss(args.FOCAL_GAMMA, args.FOCAL_ALPHA)
@@ -56,16 +56,18 @@ if __name__ == "__main__" :
 
 
     # common
-    parser.add_argument("--BATCH_SIZE", type=int, default=8)
-    parser.add_argument("--MODEL_NAME", type=str, default='efficientnet_b4')#
+    parser.add_argument("--BATCH_SIZE", type=int, default=16)
+    parser.add_argument("--MODEL_NAME", type=str, default='tf_efficientnet_b4_ns')
     parser.add_argument("--NUM_CLASSES", type=int, default=3)
 
     parser.add_argument("--IMG_PATH", type=str, default="./data/mosaic_train/*")
-    parser.add_argument("--CSV_PATH", type=str, default="./data/mosaic_EgoCrash_train.csv",
+    parser.add_argument("--CSV_PATH", type=str, default="./data/mosaic_Weather_train.csv",
                         help='For test, using sample_submission.csv file')
-    parser.add_argument("--OUTPUT", type=str, default='./ckpt/mosaic_EgoCrash_effib4_512',
+    parser.add_argument("--OUTPUT", type=str, default='./ckpt/mosaic_Weather_EffiB4ns384',
                         help='For train, checkpoint save path \\'
                              'For test, predicted label save path')
+    parser.add_argument("--RESIZE", type=int, default=384)
+
     # train
     train_parser = subparsers.add_parser('train')
     train_parser.add_argument("--LEARNING_RATE", type=float, default=1e-4)
@@ -78,9 +80,9 @@ if __name__ == "__main__" :
     train_parser.add_argument("--IN_CHANNEL", type=int, default=3)
     # train_parser.add_argument("--CTL_STEP", nargs="+", type=int, default=[36, 61])
     train_parser.add_argument("--FOCAL_GAMMA", type=int, default=2)
-    train_parser.add_argument("--FOCAL_ALPHA", type=int, default=2)
+    train_parser.add_argument("--FOCAL_ALPHA", type=int, default=0.25)
     train_parser.add_argument("--KFOLD", type=int, default=0)
-    train_parser.add_argument("--LOG", type=str, default='./tensorboard/mosaic_EgoCrash_effib4_512')
+    train_parser.add_argument("--LOG", type=str, default='./tensorboard/mosaic_Weather_EffiB4ns384')
     train_parser.add_argument("--REUSE", type=bool, default=False)
     train_parser.add_argument("--CHECKPOINT", type=str, default='./ckpt/NewWeatherModel_PixLevelAug_GridShuffle_effi2m_512/6E-val0.9193548387096774-efficientnet_b0.pth')
     train_parser.add_argument("--START_EPOCH", type=int, default=0)

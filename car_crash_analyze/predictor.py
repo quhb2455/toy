@@ -19,7 +19,7 @@ class Predictor() :
         self.batch_size = args.BATCH_SIZE
         self.num_classes = args.NUM_CLASSES
         self.device = device
-        
+        self.resize = args.RESIZE
         self.model = get_models(model, args.CHECKPOINT)
         self.test_loader, self.df = self.get_dataloader(args.CSV_PATH, args.IMG_PATH, args.BATCH_SIZE)
 
@@ -120,7 +120,11 @@ class Predictor() :
         stack = True if self._type == 'stack' else False
         # img_set, df, transform = image_label_dataset(csv_path, img_path,
         #                                              grid_shuffle_p=0, training=False)
-        return custom_dataload(df, None, batch_size, data_type='valid', shuffle=False, stack=stack), df
+        # if img_path == 'convnext' :
+        return custom_dataload(df, None, batch_size, data_type='valid', shuffle=False, stack=stack, resize=self.resize), df
+        
+        
+        
 
 
 

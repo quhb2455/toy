@@ -19,16 +19,18 @@ class Trainer() :
         self.optimizer = optimizer
         self.criterion = criterion
 
+        self.args = args
         # train_df, val_df, train_labels, val_labels = divided_train_val(read_csv('./data/train.csv'))
         self.train_loader ,self.val_loader = self.get_dataloader(
             args.CSV_PATH, 
             args.BATCH_SIZE, 
             args.SHUFFLE, 
-            args.STACK)
+            args.STACK,
+            args.RESIZE)
         
         self.log_writter = SummaryWriter(args.LOG)
         self.save_path = args.OUTPUT
-        self.args = args
+
         self.best_score = 0
         self.device = device
         self.early_stop_cnt = 0
@@ -67,7 +69,6 @@ class Trainer() :
                 # output, batch_output = self.model(img)
                 output = self.model(img)
                 # output = output.squeeze(1)
-                
                 loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
             
             elif self.args.APPLY_MIXUP:
@@ -75,7 +76,6 @@ class Trainer() :
                 # output, batch_output = self.model(img)
                 output = self.model(img)
                 # output = output.squeeze(1)
-                
                 loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
                 
             else:
@@ -167,10 +167,13 @@ class Trainer() :
             self.model = weight_freeze(self.model)
 
 
-    def get_dataloader(self, csv_path, batch_size, shuffle=True, stack=False):
+    def get_dataloader(self, csv_path, batch_size, shuffle=True, stack=False, resize=384):
         train_df, val_df, train_labels, val_labels = divided_train_val(read_csv(csv_path), stack=stack)
-        return train_and_valid_dataload((train_df, val_df), (train_labels, val_labels), batch_size=batch_size, shuffle=shuffle, stack=stack)
-
+        return train_and_valid_dataload((train_df, val_df), (train_labels, val_labels), 
+                                        batch_size=batch_size, 
+                                        shuffle=shuffle, stack=stack, 
+                                        resize=resize)
+        
 
     def model_save(self, epoch, val_acc):
         if self.best_score < val_acc:
@@ -189,7 +192,7 @@ if __name__ == "__main__" :
     parser.add_argument("--BATCH_SIZE", type=int, default=1)
     parser.add_argument("--LEARNING_RATE", type=float, default=1e-2)
     parser.add_argument("--EPOCHS", type=int, default=70)
-
+    parser.add_argument("--RESIZE", type=int, default=384)
     parser.add_argument("--FOCAL_GAMMA", type=int, default=2)
     parser.add_argument("--FOCAL_ALPHA", type=int, default=2)
     parser.add_argument("--THRESHOLD", type=float, default=0.5)
