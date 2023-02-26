@@ -14,15 +14,15 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
 class PathWay(nn.Module) :
-    def __init__(self, slowfast_alpha=4) -> None:
+    def __init__(self, _alpha=4, ) -> None:
         super().__init__()
-        self.slowfast_alpha = slowfast_alpha
+        self._alpha = _alpha
     def forward(self, frames) :
         fast_way = frames
         slow_way = torch.index_select(
             frames, 
             1, 
-            torch.linspace(0, frames.shape[1] - 1, frames.shape[1] // self.slowfast_alpha).long()
+            torch.linspace(0, frames.shape[1] - 1, frames.shape[1] // self._alpha).long()
         )
         frame_list = [slow_way, fast_way]
         return frame_list
@@ -33,29 +33,51 @@ class VideoDataset(Dataset):
         self.video_path = video_path
         self.label = label
         self.transform = transform
-        self.datalayer = PsthWay()
+        self.max_len = 32
+        self.datalayer = PathWay()
     def __len__(self):
         return len(self.video_path)
     
-    def __getitem__(self, idx: Any):
-        label = self.label[idx]
-        path = self.video_path[idx]
+    def __getitem__(self, idx):
+        path = os.path.join('./data', self.video_path['video_path'].iloc[idx][2:])
+        
+        cnt = 0
+        start_num = np.random.randint(13, 19)
         cap = cv2.VideoCapture(path)
         _frames = []
         while(cap.isOpened()) :
             ret, frame = cap.read()
+            cnt += 1
+
+            if cnt <= start_num :
+                continue
+            elif cnt > start_num + self.max_len :
+                break
             
             if ret  :
                 _frames.append(self.transform(image=frame)['image'])
             else :
                 break
-        frames = self.datalayer(torch.stack(_frames).permute(1, 0, 2, 3))
+        cap.release()
+        frames = torch.stack(_frames)#self._add_padding(torch.stack(_frames),max_len=self.max_len)
+        frames = self.datalayer(frames.permute(1, 0, 2, 3))
         
         if self.label == None :
             return frames 
         else :
+            label = self.label[idx]
             return frames, label
+        
+    def _add_padding(self, video, max_len=32):
+        if video.shape[0] < max_len:
+            T, C, H, W = video.shape
+            pad = torch.zeros(max_len-T, C, H, W)
+            video = torch.cat([video, pad], dim=0)
+        else:
+            video = video[:max_len]
 
+        return video
+    
 class CustomDataset(Dataset):
     def __init__(self, _df, labels, transform=None):
         self._df = _df
@@ -198,7 +220,12 @@ def transform_parser(grid_shuffle_p=0.8, resize=384, data_type='train') :
             A.Normalize(),
             ToTensorV2()
         ])
-
+    elif data_type == 'video' :
+        return A.Compose([
+            A.Resize(resize, resize),
+            A.Normalize(),
+            ToTensorV2()
+        ])
 
 def img_parser(data_path, div, training=True):
     path = sorted(glob(data_path), key=lambda x: int(x.split('\\')[-1].split('.')[0]))
@@ -228,7 +255,9 @@ def image_label_dataset(df_path, img_path, div=0.8, grid_shuffle_p=0.8, training
 def custom_dataload(df_set, label_set, batch_size, data_type, shuffle, stack, resize) :
     transform = transform_parser(data_type=data_type, resize=resize)
     
-    ds = CustomDataset(df_set, label_set, transform)
+    # ds = CustomDataset(df_set, label_set, transform)
+    
+    ds = VideoDataset(df_set, label_set, transform=transform)
         
     if stack :
         dl = DataLoader(ds, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn, num_workers=6)
@@ -238,6 +267,6 @@ def custom_dataload(df_set, label_set, batch_size, data_type, shuffle, stack, re
 
 
 def train_and_valid_dataload(df_set, label_set, batch_size=16, shuffle=True, stack=False, resize=384) :
-    train_loader = custom_dataload(df_set[0], label_set[0], batch_size, 'train', shuffle, stack, resize)
+    train_loader = custom_dataload(df_set[0], label_set[0], batch_size, 'video', shuffle, stack, resize)
     val_loader = custom_dataload(df_set[1], label_set[1], batch_size, 'valid', False, stack, resize)
     return train_loader, val_loader

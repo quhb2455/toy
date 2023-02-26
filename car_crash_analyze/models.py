@@ -54,12 +54,13 @@ class simple_NN(nn.Module):
         return x
     
 class SlowFast(nn.Module) :
-    def __init__(self) -> None:
+    def __init__(self, num_classes) -> None:
         super().__init__()
         self.model = torch.hub.load('facebookresearch/pytorchvideo', 'slowfast_r50', pretrained=True)
-        
+        self.head = nn.Linear(self.model.blocks[-1].proj.out_features, num_classes)
     def forward(self, x):
         x = self.model(x)
+        x = self.head(x)
         return x
     
 class _WEATHER_MODEL(nn.Module) :
