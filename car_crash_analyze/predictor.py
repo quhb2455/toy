@@ -41,8 +41,8 @@ class Predictor() :
         model_preds_ind = []
         with torch.no_grad() :
             for img in tqdm(self.test_loader) :
-                # img = img.to(self.device)
-                img = [i.to(self.device) for i in img]
+                img = img.to(self.device)
+                # img = [i.to(self.device) for i in img]
                 preds = self.model(img)
                 
                 if self._type =='each' :

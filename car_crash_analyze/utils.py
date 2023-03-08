@@ -104,11 +104,14 @@ def new_batch_score(true_labels, model_preds, threshold) :
     # return f1_score(true_labels, model_preds, average='macro')
 
 def score(true_labels, model_preds, threshold=None) :
+    # timnming
     # model_preds = sigmoid2binary(torch.sigmoid(model_preds.detach().cpu()), threshold)
     # print("model_preds : ",model_preds)
 
     # model_preds = torch.sigmoid(model_preds.detach().cpu())
+    # weather
     model_preds = model_preds.argmax(1).detach().cpu().numpy().tolist()
+    
     true_labels = true_labels.detach().cpu().numpy().tolist()
 
     # print("true_labels : ",true_labels)

@@ -7,7 +7,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import StratifiedKFold
 from torch.utils.tensorboard import SummaryWriter
-
+import torch
 from datasets import *
 from utils import *
 from models import NN, simple_NN
@@ -18,7 +18,7 @@ class Trainer() :
         self.model = model
         self.optimizer = optimizer
         self.criterion = criterion
-
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=1e-4)
         self.args = args
         # train_df, val_df, train_labels, val_labels = divided_train_val(read_csv('./data/train.csv'))
         self.train_loader ,self.val_loader = self.get_dataloader(
@@ -49,9 +49,10 @@ class Trainer() :
 
             # validation
             self.validation(epoch)
-
-            if self.early_stop_cnt == 5 :
-                break
+            self.scheduler.step()
+            
+            # if self.early_stop_cnt == 5 :
+            #     break
 
     def training(self, epoch):
         self.model.train()
@@ -60,10 +61,8 @@ class Trainer() :
         for batch, (img, label) in enumerate(tqdm_train, start=1):
 
             self.optimizer.zero_grad()
-
-            img = [i.to(self.device) for i in img]
-            # print(img[0].shape)
-            # print(img[1].shape)
+            img = img.to(self.device)
+            # img = [i.to(self.device) for i in img]
             label = label.to(self.device)
 
             if self.args.APPLY_CUTMIX:
@@ -71,6 +70,9 @@ class Trainer() :
                 # output, batch_output = self.model(img)
                 output = self.model(img)
                 # output = output.squeeze(1)
+                # label_a = label_a.float()
+                # label_b = label_b.float()
+                
                 loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
             
             elif self.args.APPLY_MIXUP:
@@ -107,21 +109,24 @@ class Trainer() :
                 'training acc': acc
             }
             logging(self.log_writter, data, epoch * len(self.train_loader) + batch)
-
+        
+        
     def validation(self, epoch):
         self.model.eval()
         val_acc, val_loss = [], []
         tqdm_valid = tqdm(self.val_loader)
         with torch.no_grad():
             for batch, (img, label) in enumerate(tqdm_valid):
-                # img = img.to(self.device)
-                img = [i.to(self.device) for i in img]
+                img = img.to(self.device)
+                # img = [i.to(self.device) for i in img]
                 label = label.to(self.device)
 
                 # output, batch_output = self.model(img)
                 output = self.model(img)
+                
                 # output = output.squeeze(1)
-
+                # label = label.float()
+                
                 loss = self.criterion(output, label)
 
                 # acc = new_batch_score(label, output, self.args.THRESHOLD)

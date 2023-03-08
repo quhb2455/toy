@@ -41,8 +41,10 @@ class VideoDataset(Dataset):
     def __getitem__(self, idx):
         path = os.path.join('./data', self.video_path['video_path'].iloc[idx][2:])
         
-        cnt = 0
+        
         start_num = np.random.randint(13, 19)
+            
+        cnt = 0
         cap = cv2.VideoCapture(path)
         _frames = []
         while(cap.isOpened()) :
@@ -160,7 +162,8 @@ def transform_parser(grid_shuffle_p=0.8, resize=384, data_type='train') :
         return A.Compose([
             
             # ego+crash mosaic 핛브용
-            A.Resize(resize, resize),
+            A.Resize(resize+300, resize+300),
+            A.RandomCrop(resize, resize),
             A.OneOf([
                 A.CLAHE(p=1),
                 A.ImageCompression(p=1),
@@ -207,7 +210,7 @@ def transform_parser(grid_shuffle_p=0.8, resize=384, data_type='train') :
             #     A.Blur(blur_limit=(3, 3)),
             # ], p=1),
             A.Spatter(p=0.7, mode=['rain']),
-            A.RandomGridShuffle(p=0.6, grid=(7, 7)),
+            A.RandomGridShuffle(p=0.6, grid=(5, 5)),
 
             A.Normalize(),
             ToTensorV2()
@@ -255,9 +258,9 @@ def image_label_dataset(df_path, img_path, div=0.8, grid_shuffle_p=0.8, training
 def custom_dataload(df_set, label_set, batch_size, data_type, shuffle, stack, resize) :
     transform = transform_parser(data_type=data_type, resize=resize)
     
-    # ds = CustomDataset(df_set, label_set, transform)
+    ds = CustomDataset(df_set, label_set, transform)
     
-    ds = VideoDataset(df_set, label_set, transform=transform)
+    # ds = VideoDataset(df_set, label_set, transform=transform)
         
     if stack :
         dl = DataLoader(ds, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn, num_workers=6)
@@ -267,6 +270,6 @@ def custom_dataload(df_set, label_set, batch_size, data_type, shuffle, stack, re
 
 
 def train_and_valid_dataload(df_set, label_set, batch_size=16, shuffle=True, stack=False, resize=384) :
-    train_loader = custom_dataload(df_set[0], label_set[0], batch_size, 'video', shuffle, stack, resize)
+    train_loader = custom_dataload(df_set[0], label_set[0], batch_size, 'train', shuffle, stack, resize)
     val_loader = custom_dataload(df_set[1], label_set[1], batch_size, 'valid', False, stack, resize)
     return train_loader, val_loader
