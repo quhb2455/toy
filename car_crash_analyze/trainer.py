@@ -61,8 +61,8 @@ class Trainer() :
         for batch, (img, label) in enumerate(tqdm_train, start=1):
 
             self.optimizer.zero_grad()
-            img = img.to(self.device)
-            # img = [i.to(self.device) for i in img]
+            # img = img.to(self.device)
+            img = [i.to(self.device) for i in img]
             label = label.to(self.device)
 
             if self.args.APPLY_CUTMIX:
@@ -117,8 +117,8 @@ class Trainer() :
         tqdm_valid = tqdm(self.val_loader)
         with torch.no_grad():
             for batch, (img, label) in enumerate(tqdm_valid):
-                img = img.to(self.device)
-                # img = [i.to(self.device) for i in img]
+                # img = img.to(self.device)
+                img = [i.to(self.device) for i in img]
                 label = label.to(self.device)
 
                 # output, batch_output = self.model(img)

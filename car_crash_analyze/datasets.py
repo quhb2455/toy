@@ -13,6 +13,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
+
+
 class PathWay(nn.Module) :
     def __init__(self, _alpha=4, ) -> None:
         super().__init__()
@@ -33,7 +35,7 @@ class VideoDataset(Dataset):
         self.video_path = video_path
         self.label = label
         self.transform = transform
-        self.max_len = 32
+        self.max_len = 64#32
         self.datalayer = PathWay()
     def __len__(self):
         return len(self.video_path)
@@ -51,17 +53,17 @@ class VideoDataset(Dataset):
             ret, frame = cap.read()
             cnt += 1
 
-            if cnt <= start_num :
-                continue
-            elif cnt > start_num + self.max_len :
-                break
+            # if cnt <= start_num :
+            #     continue
+            # elif cnt > start_num + self.max_len :
+            #     break
             
             if ret  :
                 _frames.append(self.transform(image=frame)['image'])
             else :
                 break
         cap.release()
-        frames = torch.stack(_frames)#self._add_padding(torch.stack(_frames),max_len=self.max_len)
+        frames = self._add_padding(torch.stack(_frames),max_len=self.max_len)#torch.stack(_frames)
         frames = self.datalayer(frames.permute(1, 0, 2, 3))
         
         if self.label == None :
@@ -162,7 +164,7 @@ def transform_parser(grid_shuffle_p=0.8, resize=384, data_type='train') :
         return A.Compose([
             
             # ego+crash mosaic 핛브용
-            A.Resize(resize+300, resize+300),
+            A.Resize(resize+200, resize+200),
             A.RandomCrop(resize, resize),
             A.OneOf([
                 A.CLAHE(p=1),
@@ -190,18 +192,18 @@ def transform_parser(grid_shuffle_p=0.8, resize=384, data_type='train') :
             A.ElasticTransform(p=0.7, 
                 alpha=120, sigma=120 * 0.1, alpha_affine=120 * 0.1),
             
-            A.Affine(p=0.6,
-                scale=(1,1.1), # 이미지 크기 조정
-                translate_percent=(-0.01, 0.01), # 이미지 이동
-                translate_px=None, # 픽셀단위로 이미지 이동
-                rotate=(-15, 15), # 회전 각도 조절
-                shear=None, # 잡아당기는 효과
-                interpolation=1, 
-                mask_interpolation=0, 
-                cval=5, cval_mask=5, 
-                mode=0, # 회전 할 떄 남은 부분 색으로 채우기
-                fit_output=False, # 사진에 맞게 그리기
-                always_apply=False),    
+            # A.Affine(p=0.6,
+            #     scale=(1,1.1), # 이미지 크기 조정
+            #     translate_percent=(-0.01, 0.01), # 이미지 이동
+            #     translate_px=None, # 픽셀단위로 이미지 이동
+            #     rotate=(-15, 15), # 회전 각도 조절
+            #     shear=None, # 잡아당기는 효과
+            #     interpolation=1, 
+            #     mask_interpolation=0, 
+            #     cval=5, cval_mask=5, 
+            #     mode=0, # 회전 할 떄 남은 부분 색으로 채우기
+            #     fit_output=False, # 사진에 맞게 그리기
+            #     always_apply=False),    
             
             
             # weather 학습 용
@@ -210,7 +212,7 @@ def transform_parser(grid_shuffle_p=0.8, resize=384, data_type='train') :
             #     A.Blur(blur_limit=(3, 3)),
             # ], p=1),
             A.Spatter(p=0.7, mode=['rain']),
-            A.RandomGridShuffle(p=0.6, grid=(5, 5)),
+            # A.RandomGridShuffle(p=0.6, grid=(5, 5)),
 
             A.Normalize(),
             ToTensorV2()
@@ -225,7 +227,8 @@ def transform_parser(grid_shuffle_p=0.8, resize=384, data_type='train') :
         ])
     elif data_type == 'video' :
         return A.Compose([
-            A.Resize(resize, resize),
+            A.Resize(resize+100, resize+100),
+            A.RandomCrop(resize, resize),
             A.Normalize(),
             ToTensorV2()
         ])
@@ -257,10 +260,8 @@ def image_label_dataset(df_path, img_path, div=0.8, grid_shuffle_p=0.8, training
 
 def custom_dataload(df_set, label_set, batch_size, data_type, shuffle, stack, resize) :
     transform = transform_parser(data_type=data_type, resize=resize)
-    
-    ds = CustomDataset(df_set, label_set, transform)
-    
-    # ds = VideoDataset(df_set, label_set, transform=transform)
+    # ds = CustomDataset(df_set, label_set, transform)   
+    ds = VideoDataset(df_set, label_set, transform=transform)
         
     if stack :
         dl = DataLoader(ds, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn, num_workers=6)
@@ -270,6 +271,6 @@ def custom_dataload(df_set, label_set, batch_size, data_type, shuffle, stack, re
 
 
 def train_and_valid_dataload(df_set, label_set, batch_size=16, shuffle=True, stack=False, resize=384) :
-    train_loader = custom_dataload(df_set[0], label_set[0], batch_size, 'train', shuffle, stack, resize)
+    train_loader = custom_dataload(df_set[0], label_set[0], batch_size, 'video', shuffle, stack, resize)
     val_loader = custom_dataload(df_set[1], label_set[1], batch_size, 'valid', False, stack, resize)
     return train_loader, val_loader

@@ -82,7 +82,7 @@ class simple_NN(nn.Module):
 class SlowFast(nn.Module) :
     def __init__(self, num_classes) -> None:
         super().__init__()
-        self.model = torch.hub.load('facebookresearch/pytorchvideo', 'slowfast_r50', pretrained=True)
+        self.model = torch.hub.load('facebookresearch/pytorchvideo', 'slowfast_16x8_r101_50_50', pretrained=True)
         self.head = nn.Linear(self.model.blocks[-1].proj.out_features, num_classes)
     def forward(self, x):
         x = self.model(x)
