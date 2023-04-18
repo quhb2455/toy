@@ -12,3 +12,5 @@
 3D_Number_Image_Classification/data/
 *.gif
 3D_Number_Image_Classification/tensorboard/
+car_crash_analyze/tensorboard/
+car_crash_analyze/*
