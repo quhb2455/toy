@@ -31,11 +31,12 @@ class Predictor() :
     def save_to_csv(self, results, **cfg) :
         _label_dec = label_dec(cfg["label_name"])
 
-        img_name_list = [os.path.splitext(os.path.basename(p))[0] for p in glob(os.path.join(cfg["data_path"], "*"))]
+        img_name_list = ["TEST_"+os.path.splitext(os.path.basename(p))[0] for p in glob(os.path.join(cfg["data_path"], "*"))]
         res_label_list = [_label_dec[i] for i in results]        
         
         df = pd.DataFrame({"id" : img_name_list, "label":res_label_list})
-        df.to_csv(cfg["output_path"], index=False)
+        df.to_csv(os.path.join(cfg["output_path"],os.path.splitext(cfg["weight_path"].split("/")[-1])[0])+".csv", 
+                  index=False)
     
     def weight_load(self, weight_path) :
         checkpoint = torch.load(weight_path)

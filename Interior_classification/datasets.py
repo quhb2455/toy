@@ -12,7 +12,7 @@ class CustomDataset(Dataset):
     def __init__(self, imgs, labels, transform=None):
         self.imgs = imgs
         self.labels = labels
-        self.label_enc = label_enc(sorted(set(labels)))
+        self.label_enc = label_enc(sorted(set(labels))) if labels != None else None
         self.transform = transform
 
     def __len__(self):
