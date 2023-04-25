@@ -1,11 +1,25 @@
 from sklearn.metrics import accuracy_score, f1_score
 from datetime import datetime
-
+from glob import glob
+from tqdm import tqdm
 import os
 import json
 import cv2
 import numpy as np
 import torch
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+
+# CAM
+from torch.autograd import Variable
+from torch.nn import functional as F
+
+
+def get_loss_weight(data_path):
+    num_data_samples = []
+    for p in sorted(glob(os.path.join(data_path, "*"))) :
+        num_data_samples.append(len(os.listdir(p)))
+    return [1 - (x / sum(num_data_samples)) for x in num_data_samples]
 
 def score(true_labels, model_preds, threshold=None) :
     model_preds = model_preds.argmax(1).detach().cpu().numpy().tolist()
@@ -72,3 +86,62 @@ def mixup(imgs, labels):
     target_a, target_b = labels, labels[rand_index]
 
     return mixed_imgs, lam, target_a, target_b
+
+def returnCAM(feature_conv, weight_softmax, class_idx):
+    # https://github.com/chaeyoung-lee/pytorch-CAM/blob/master/update.py
+    # generate the class activation maps upsample to 256x256
+    size_upsample = (256, 256)
+    bz, nc, h, w = feature_conv.shape
+    output_cam = []
+    for idx in class_idx:
+        cam = weight_softmax[class_idx].dot(feature_conv.reshape((nc, h*w)))
+        cam = cam.reshape(h, w)
+        cam = cam - np.min(cam)
+        cam_img = cam / np.max(cam)
+        cam_img = np.uint8(255 * cam_img)
+        output_cam.append(cv2.resize(cam_img, size_upsample))
+    return output_cam
+
+def get_CAM(net, final_conv_name, img, label_name):
+    transforms = A.Compose([
+        A.Resize(300, 300),
+        A.Normalize(),
+        ToTensorV2()
+    ])
+    
+    features_blobs = []
+
+    def hook_feature(module, input, output):
+        features_blobs.append(output.data.cpu().numpy())
+
+    net._modules.get(final_conv_name).register_forward_hook(hook_feature)
+    
+    params = list(net.parameters())
+    weight_softmax = np.squeeze(params[-2].data.cpu().numpy())
+    
+    img_tensor = transforms(image=img)["image"]
+    img_variable = Variable(img_tensor.unsqueeze(0)).to("cuda")
+    logit = net(img_variable.type('torch.cuda.FloatTensor'))
+    
+    classes = label_dec(label_name)
+    h_x = F.softmax(logit, dim=1).data.squeeze()
+    probs, idx = h_x.sort(0, True)
+
+    # for i in range(0, 19):
+    #     line = '{:.3f} -> {}'.format(probs[i], classes[idx[i].item()])
+    #     print(line)
+
+    CAMs = returnCAM(features_blobs[0], weight_softmax, [idx[0].item()])
+    
+    # print('output CAM.jpg for the top1 prediction: %s' % classes[idx[0].item()])
+    # img = cv2.imread("./test.png")
+    # img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
+
+    height, width, _ = img.shape
+
+    CAM = cv2.resize(CAMs[0], (width, height))
+
+    heatmap = cv2.applyColorMap(CAM, cv2.COLORMAP_JET)
+    heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
+    return heatmap * 0.3 + img * 0.5, classes[idx[0].item()]
+    
