@@ -12,6 +12,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from albumentations.core.transforms_interface import ImageOnlyTransform
+from pytorch_metric_learning import miners, losses
 
 import cv2
 import numpy as np
@@ -48,6 +49,9 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         self.model = BaseModel(**cfg).to(cfg["device"])
         self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
         self.criterion = nn.CrossEntropyLoss().to("cuda")
+        
+        # self.miner = miners.MultiSimilarityMiner()
+        # self.criterion = losses.TripletMarginLoss()
         # self.criterion = nn.CrossEntropyLoss(weight=torch.tensor(get_loss_weight(cfg["data_path"])).to("cuda"))
         #FocalLoss(alpha=cfg["focal_alpha"], gamma=cfg["focal_gamma"])
         # self.scheduler = CosineAnnealingLR(self.optimizer, T_max=10, eta_min=5e-4)
@@ -68,12 +72,10 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         label = label.to(cfg["device"])
         
         img, lam, label_a, label_b = mixup(img, label)
+        
         output = self.model(img)
         loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
-        
-        # output = self.model(img)
-        # loss = self.criterion(output, label)
-        
+                
         loss.backward()
         self.optimizer.step()
         
@@ -94,7 +96,7 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         if _mode == 'train' :
             return A.Compose([
                 A.Resize(resize, resize),
-                MixedEdgeImage(alpha=0.3, beta=0.7),
+                # MixedEdgeImage(alpha=0.15, beta=0.85, p=0.5),
                 A.OneOf([
                     A.CLAHE(p=1),
                     A.ImageCompression(p=1),
@@ -114,13 +116,16 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
                 ],p=0.5),                
                 A.ElasticTransform(p=0.7, 
                     alpha=120, sigma=120 * 0.1, alpha_affine=120 * 0.1),
+                A.RandomGridShuffle((4, 4), p=0.8),
                 A.Normalize(),
                 ToTensorV2()
             ])
         elif _mode == 'valid' :
             return A.Compose([
                 A.Resize(resize, resize),
-                MixedEdgeImage(alpha=0.3, beta=0.7),
+                # A.Emboss(p=1),
+                # A.Sharpen(p=1), 
+                # A.FancyPCA(p=1),
                 A.Normalize(),
                 ToTensorV2()
             ])
@@ -137,7 +142,7 @@ if __name__ == "__main__" :
     cfg = {
         "mode" : "train", #train, #infer
         
-        "model_name" : "tf_efficientnetv2_s.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
+        "model_name" : "tf_efficientnetv2_m.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
         #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",#"beit_base_patch16_224.in22k_ft_in22k",
         "num_classes" : 19,
         
@@ -149,14 +154,14 @@ if __name__ == "__main__" :
         "data_path" : "./data/train",#"./data/train",#"./data/test",
         "epochs" : 60,
         "batch_size" : 16,
-        "num_worker" : 1,
+        "num_worker" : 6,
         "early_stop_patient" : 10,
                 
-        "reuse" : False, #True, #False
-        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/resize300_mixup_WeightedCEloss/18E-val0.8857824040582661-tf_efficientnetv2_s.in21k.pth",
+        "reuse" : True, #True, #False
+        "weight_path" : "./ckpt/eva_large_patch14_196.in22k_ft_in1k/normal/20E-val0.7939510724007007-eva_large_patch14_196.in22k_ft_in1k.pth",
         
-        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/resize300_mixup_CEloss_MixEdge",
-        "output_path" : "./output/tf_efficientnetv2_s.in21k/resize300_mixup_CEloss_MixEdge",
+        "save_path" : "./ckpt/eva_large_patch14_196.in22k_ft_in1k/normal",
+        "output_path" : "./output/eva_large_patch14_196.in22k_ft_in1k/normal",
         
         "device" : "cuda",
         "label_name" : ["가구수정", "걸레받이수정", "곰팡이", "꼬임", "녹오염", "들뜸",
