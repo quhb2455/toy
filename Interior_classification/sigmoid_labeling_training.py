@@ -262,8 +262,8 @@ if __name__ == "__main__" :
         
         "error_rate" : False,
         "sigmoid_labeling" : True,
-        "sigmoid_labeling_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_step6_asyloss/sigmoid_labeling.csv",
-        "sigmoid_norm" : 0.3,
+        "sigmoid_labeling_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step4/sigmoid_labeling.csv",
+        "sigmoid_norm" : 0.5,
         
         "model_name" : "tf_efficientnetv2_s.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
         #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",#"beit_base_patch16_224.in22k_ft_in22k",
@@ -281,11 +281,11 @@ if __name__ == "__main__" :
         "early_stop_patient" : 10,
         
         "binary_mode" : False,
-        "reuse" : True, #True, #False
-        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_step5/80E-val0.8993568702476749-tf_efficientnetv2_s.in21k.pth",
+        "reuse" : False, #True, #False
+        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5/26E-val0.8973153669801178-tf_efficientnetv2_s.in21k.pth",
         
-        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_step6_asyloss",
-        "output_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_step6_asyloss",
+        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5",
+        "output_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5",
         
         "device" : "cuda",
         "label_name" : ["가구수정", "걸레받이수정", "곰팡이", "꼬임", "녹오염", "들뜸",

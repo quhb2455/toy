@@ -3,7 +3,7 @@ from predictor import Predictor
 from datasets import DatasetCreater
 from models import BaseModel
 from loss_fn import FocalLoss
-from utils import save_config, mixup, score, get_loss_weight
+from utils import save_config, mixup, cutmix, score, get_loss_weight
 
 import torch
 import torch.nn as nn
@@ -16,6 +16,7 @@ from pytorch_metric_learning import miners, losses
 
 import cv2
 import numpy as np
+from tqdm import tqdm
 
 class MixedEdgeImage(ImageOnlyTransform):
     def __init__(
@@ -49,12 +50,12 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         self.model = BaseModel(**cfg).to(cfg["device"])
         self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
         self.criterion = nn.CrossEntropyLoss().to("cuda")
-        
+        # self.criterion=nn.BCEWithLogitsLoss().to("cuda")
         # self.miner = miners.MultiSimilarityMiner()
         # self.criterion = losses.TripletMarginLoss()
         # self.criterion = nn.CrossEntropyLoss(weight=torch.tensor(get_loss_weight(cfg["data_path"])).to("cuda"))
         #FocalLoss(alpha=cfg["focal_alpha"], gamma=cfg["focal_gamma"])
-        # self.scheduler = CosineAnnealingLR(self.optimizer, T_max=10, eta_min=5e-4)
+        # self.scheduler = CosineAnnealingLR(self.optimizer, T_max=60, eta_min=5e-4)
         
         if cfg["mode"] == 'train' :
             self.train_loader, self.valid_loader = self.create_dataloader([self.get_transform('train', **cfg), 
@@ -71,14 +72,25 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         img = img.to(cfg["device"])
         label = label.to(cfg["device"])
         
-        img, lam, label_a, label_b = mixup(img, label)
-        
+        if cfg["binary_mode"] :
+            mixup_label = torch.argmax(label, dim=1)
+            # if np.random.binomial(n=1, p=0.5) :
+            img, lam, label_a, label_b = mixup(img, mixup_label)
+            # img, lam, label_a, label_b = mixup(img, label)
+            
+
+            label_a = torch.FloatTensor([[1 if i == a else 0 for i in range(len(cfg["label_name"])) ] for a in label_a]).to(cfg["device"])
+            label_b = torch.FloatTensor([[1 if i == b else 0 for i in range(len(cfg["label_name"])) ] for b in label_b]).to(cfg["device"])
+        else :
+            img, lam, label_a, label_b = mixup(img, label)
+    
         output = self.model(img)
         loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
                 
         loss.backward()
         self.optimizer.step()
         
+        # acc = score(mixup_label, output)
         acc = score(label, output)
         
         batch_metric = {
@@ -87,10 +99,41 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         }
         
         return batch_metric 
-    
+
+    def valid_on_batch(self, img, label, **cfg):
+        img = img.to(cfg["device"])
+        label = label.to(cfg["device"])
+        
+        if cfg["binary_mode"] :
+            mixup_label = torch.argmax(label, dim=1)
+        
+            output = self.model(img)
+            loss = self.criterion(output, label.type(torch.float32))
+            
+            acc = score(mixup_label, output)
+        else :        
+            output = self.model(img)
+            loss = self.criterion(output, label)
+            
+            acc = score(label, output)
+        batch_metric = {
+            "acc" : acc,
+            "loss" : loss.item()
+        }
+        
+        return batch_metric
+       
     def infer(self, **cfg) :
         self.prediction(**cfg)
-            
+    
+    # def predict_on_batch(self, img, **cfg) :
+    #     img = img.to(cfg["device"])
+    #     output = self.model(img)
+    #     # binary_ = torch.softmax(output, dim=1)
+    #     # binary_[binary_  > 0.9] = 1 
+    #     # binary_[binary_  <= 0.9] = 0 
+    #     return output.argmax(1).detach().cpu().numpy().tolist()
+    
     def get_transform(self, _mode, **cfg) :
         resize = cfg["resize"]
         if _mode == 'train' :
@@ -116,7 +159,7 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
                 ],p=0.5),                
                 A.ElasticTransform(p=0.7, 
                     alpha=120, sigma=120 * 0.1, alpha_affine=120 * 0.1),
-                A.RandomGridShuffle((4, 4), p=0.8),
+                A.RandomGridShuffle((3, 3), p=0.4),
                 A.Normalize(),
                 ToTensorV2()
             ])
@@ -140,9 +183,9 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
 if __name__ == "__main__" :
     
     cfg = {
-        "mode" : "train", #train, #infer
+        "mode" : "infer", #train, #infer
         
-        "model_name" : "tf_efficientnetv2_m.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
+        "model_name" : "tf_efficientnetv2_s.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
         #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",#"beit_base_patch16_224.in22k_ft_in22k",
         "num_classes" : 19,
         
@@ -151,17 +194,18 @@ if __name__ == "__main__" :
         "focal_gamma" : 2,
         "resize" : 300,
         
-        "data_path" : "./data/train",#"./data/train",#"./data/test",
-        "epochs" : 60,
+        "data_path" : "./data/test",#"./data/more_first_aug_train", #"./data/combine_train",#"./data/train",#"./data/test",
+        "epochs" : 80,
         "batch_size" : 16,
-        "num_worker" : 6,
+        "num_worker" : 1,
         "early_stop_patient" : 10,
-                
-        "reuse" : True, #True, #False
-        "weight_path" : "./ckpt/eva_large_patch14_196.in22k_ft_in1k/normal/20E-val0.7939510724007007-eva_large_patch14_196.in22k_ft_in1k.pth",
         
-        "save_path" : "./ckpt/eva_large_patch14_196.in22k_ft_in1k/normal",
-        "output_path" : "./output/eva_large_patch14_196.in22k_ft_in1k/normal",
+        "binary_mode" : False,
+        "reuse" : False, #True, #False
+        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5/31E-val0.8926313482028264-tf_efficientnetv2_s.in21k.pth",
+        
+        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5",
+        "output_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5",
         
         "device" : "cuda",
         "label_name" : ["가구수정", "걸레받이수정", "곰팡이", "꼬임", "녹오염", "들뜸",

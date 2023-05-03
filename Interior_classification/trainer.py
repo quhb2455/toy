@@ -49,6 +49,7 @@ class Trainer() :
                 "Training Acc" : np.mean(train_acc),
                 "Training Loss" : np.mean(train_loss),
             })
+            
         # self.scheduler.step()
         
     def train_on_batch(self, img, label, **cfg) :

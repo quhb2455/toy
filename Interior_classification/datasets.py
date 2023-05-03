@@ -1,5 +1,5 @@
 from utils import save_config, load_img, label_enc
-
+import torch
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
 from datetime import datetime
@@ -8,13 +8,14 @@ import os
 import cv2
 import json
 
-class CustomDataset(Dataset):
-    def __init__(self, imgs, labels, transform=None):
+class SigmoidCustomDataset(Dataset):
+    def __init__(self, imgs, sig_label, transform=None):
         self.imgs = imgs
-        self.labels = labels
-        self.label_enc = label_enc(sorted(set(labels))) if labels != None else None
+        self.labels = sig_label
+        # self.label_enc = label_enc(sorted(set(labels))) if labels != None else None
         self.transform = transform
-
+        # self.binary_mode = binary_mode
+        
     def __len__(self):
         return len(self.imgs)
 
@@ -28,12 +29,52 @@ class CustomDataset(Dataset):
             image = self.transform(image=image)['image']
 
         if self.labels is not None:
-            label = self.label_enc[self.labels[index]]
+            # if self.binary_mode :
+            #     label = torch.tensor(self.binary_encoder(self.label_enc[self.labels[index]]), dtype=torch.long)
+            # else :
+            #     label = self.label_enc[self.labels[index]]
+            label = torch.tensor(self.labels[index])
             return image, label
 
         else:
             return image
         
+
+class CustomDataset(Dataset):
+    def __init__(self, imgs, labels, transform=None, binary_mode=False):
+        self.imgs = imgs
+        self.labels = labels
+        self.label_enc = label_enc(sorted(set(labels))) if labels != None else None
+        self.transform = transform
+        self.binary_mode = binary_mode
+        
+    def __len__(self):
+        return len(self.imgs)
+
+    def __getitem__(self, index):
+        img_path = self.imgs[index]
+        
+        image = load_img(img_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
+        if self.transform :
+            image = self.transform(image=image)['image']
+
+        if self.labels is not None:
+            if self.binary_mode :
+                label = torch.tensor(self.binary_encoder(self.label_enc[self.labels[index]]), dtype=torch.long)
+            else :
+                label = self.label_enc[self.labels[index]]
+            
+            return image, label
+
+        else:
+            return image
+    
+    def binary_encoder(self, label):
+        total_label_len = len(self.label_enc.keys())
+        return [1 if i == label else 0 for i in range(total_label_len) ]
+    
 class DatasetCreater() :
     def __init__(self) -> None:
         self.label_dec = {idx:n for idx, n in enumerate(self.label_name)}
@@ -47,8 +88,8 @@ class DatasetCreater() :
             save_config(transform[0].to_dict(), cfg["save_path"], save_name="train_transform")
             save_config(transform[1].to_dict(), cfg["save_path"], save_name="valid_transform")
             
-            return [CustomDataset(img_path[0], label_list[0], transform=transform[0]), 
-                    CustomDataset(img_path[1], label_list[1], transform=transform[1])]
+            return [CustomDataset(img_path[0], label_list[0], transform=transform[0], binary_mode=cfg["binary_mode"]), 
+                    CustomDataset(img_path[1], label_list[1], transform=transform[1], binary_mode=cfg["binary_mode"])]
             
         elif cfg["mode"] == 'infer' :
             save_config(transform.to_dict(), cfg["output_path"], save_name="infer_transform")
