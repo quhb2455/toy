@@ -59,6 +59,31 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
     def train(self, **cfg) :
         self.run(**cfg)
         
+        
+    def step_train(self, **cfg) :
+        for i in range(2, 6) :
+            print(f"=========== STEP {i} ===========")
+            cfg["mode"] ='train'
+            cfg["data_path"] = "./data/train"
+            self.model = BaseModel(**cfg).to(cfg["device"])
+            self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
+            self.criterion = AsymmetricLoss().to(cfg["device"])
+            
+            self.train_loader, self.valid_loader = self.create_dataloader([self.get_transform('train', **cfg), 
+                                                                           self.get_transform('valid', **cfg)], **cfg)
+            self.run(**cfg)
+            
+            cfg["mode"] = 'infer'
+            cfg["data_path"] = "./data/noaug_ori_train/*" 
+            self.test_loader = self.create_dataloader(self.get_transform('infer', **cfg), **cfg)
+            self.prediction(**cfg)
+            
+            cfg["save_path"] = cfg["save_path"].replace("step"+str(i), "step"+str(i+1))
+            cfg["output_path"] = cfg["save_path"].replace("step"+str(i), "step"+str(i+1))
+            
+            cfg["sigmoid_labeling_path"] = os.path.join(cfg["output_path"], "sigmoid_labeling.csv")
+            
+            
     def train_on_batch(self, img, label, **cfg) :
         self.optimizer.zero_grad()
 
@@ -222,7 +247,7 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
                     A.CLAHE(p=1),
                     A.ImageCompression(p=1),
                 ],p=1),
-                A.RandomBrightnessContrast(brightness_limit=(-0.3, -0.1), p=1),
+                A.RandomBrightnessContrast(brightness_limit=(-0.3, -0.1), p=0.6),
                 A.OneOf([
                     A.GridDistortion(p=1, 
                         always_apply=False, 
@@ -258,14 +283,14 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
 if __name__ == "__main__" :
     
     cfg = {
-        "mode" : "train", #train, #infer
+        "mode" : "infer", #train, #infer
         
         "error_rate" : False,
         "sigmoid_labeling" : True,
-        "sigmoid_labeling_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step4/sigmoid_labeling.csv",
+        "sigmoid_labeling_path" : "./output/tf_efficientnetv2_m.in21k/sigmoid_labeling_scratch_asyloss_step1/sigmoid_labeling.csv",
         "sigmoid_norm" : 0.5,
         
-        "model_name" : "tf_efficientnetv2_s.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
+        "model_name" : "tf_efficientnetv2_m.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
         #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",#"beit_base_patch16_224.in22k_ft_in22k",
         "num_classes" : 19,
         
@@ -274,7 +299,7 @@ if __name__ == "__main__" :
         "focal_gamma" : 2,
         "resize" : 300,
         
-        "data_path" : "./data/train",#"./data/noaug_ori_train/*", #"./data/combine_train",#"./data/train",#"./data/test",
+        "data_path" : "./data/noaug_ori_train/*",#"./data/noaug_ori_train/*", #"./data/combine_train",#"./data/train",#"./data/test",
         "epochs" : 140,
         "batch_size" : 16,
         "num_worker" : 2,
@@ -282,10 +307,10 @@ if __name__ == "__main__" :
         
         "binary_mode" : False,
         "reuse" : False, #True, #False
-        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5/26E-val0.8973153669801178-tf_efficientnetv2_s.in21k.pth",
+        "weight_path" : "./ckpt/tf_efficientnetv2_m.in21k/sigmoid_labeling_scratch_asyloss_step1/30E-val0.8888393669619724-tf_efficientnetv2_m.in21k.pth",
         
-        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5",
-        "output_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5",
+        "save_path" : "./ckpt/tf_efficientnetv2_m.in21k/sigmoid_labeling_scratch_asyloss_step2",
+        "output_path" : "./output/tf_efficientnetv2_m.in21k/sigmoid_labeling_scratch_asyloss_step2",
         
         "device" : "cuda",
         "label_name" : ["가구수정", "걸레받이수정", "곰팡이", "꼬임", "녹오염", "들뜸",

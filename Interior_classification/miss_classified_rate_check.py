@@ -157,7 +157,7 @@ if __name__ == "__main__" :
         "learning_rate" : 1e-3,
         "focal_alpha" : 2,
         "focal_gamma" : 2,
-        "resize" : 256,
+        "resize" : 300,
         
         "sigmoid_labeling_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_step2/sigmoid_labeling.csv",
         "data_path" : "./data/noaug_ori_train/*", #"./data/combine_train",#"./data/train",#"./data/test",
@@ -167,10 +167,10 @@ if __name__ == "__main__" :
         "early_stop_patient" : 10,
                 
         "reuse" : False, #True, #False
-        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step3/27E-val0.8864381927039288-tf_efficientnetv2_s.in21k.pth",
+        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5/31E-val0.8926313482028264-tf_efficientnetv2_s.in21k.pth",
         
-        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step3",
-        "output_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step3",
+        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5",
+        "output_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5",
         
         "device" : "cuda",
         "label_name" : ["가구수정", "걸레받이수정", "곰팡이", "꼬임", "녹오염", "들뜸",
