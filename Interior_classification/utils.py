@@ -24,7 +24,7 @@ def get_loss_weight(data_path):
 def score(true_labels, model_preds, threshold=None) :
     model_preds = model_preds.argmax(1).detach().cpu().numpy().tolist()
     true_labels = true_labels.detach().cpu().numpy().tolist()
-    return f1_score(true_labels, model_preds, average='macro')
+    return f1_score(true_labels, model_preds, average='weighted')
 
 def save_config(config, save_path, save_name="") :
     os.makedirs(save_path, exist_ok=True)
@@ -86,6 +86,27 @@ def mixup(imgs, labels):
     target_a, target_b = labels, labels[rand_index]
 
     return mixed_imgs, lam, target_a, target_b
+
+def LSBswap(imgs, k=25) : 
+    maximum = imgs[0].shape[0] if imgs[0].shape[0] > imgs[0].shape[1] else imgs[0].shape[1]
+    rand_location = np.random.randint(maximum, size=(k, 2))
+    # rand_index = torch.randperm(imgs.size()[0]).cuda()
+    rand_pick = np.random.choice(4, size=1, replace=False)
+    
+    for rand_pick in rand_location :
+        x,y =  rand_pick
+        
+        for c in range(0, 3):
+            bin_1 = bin(imgs[:, c, y, x])
+            bin_2 = bin(imgs[rand_pick, c, y, x])
+        
+            tmp = bin_1[-2:]
+            bin_1[-2:] = bin_2[-2:] 
+            bin_2[-2:] = tmp
+            
+            imgs[:, c, y, x] = int(bin_1[-2:], 2)
+            imgs[rand_pick, c, y, x] = int(bin_2[-2:], 2)
+    return imgs
 
 def returnCAM(feature_conv, weight_softmax, class_idx):
     # https://github.com/chaeyoung-lee/pytorch-CAM/blob/master/update.py

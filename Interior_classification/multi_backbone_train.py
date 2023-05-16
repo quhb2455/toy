@@ -1,9 +1,9 @@
 from trainer import Trainer
 from predictor import Predictor
 from datasets import DatasetCreater
-from models import BaseModel
+from models import BaseModel, DivBaseModel
 from loss_fn import FocalLoss, AsymmetricLoss, AsymmetricLossSingleLabel
-from utils import save_config, mixup, cutmix, score, get_loss_weight
+from utils import save_config, mixup, cutmix, score, get_loss_weight, label_dec, label_enc
 
 import torch
 import torch.nn as nn
@@ -14,51 +14,23 @@ from albumentations.pytorch import ToTensorV2
 from albumentations.core.transforms_interface import ImageOnlyTransform
 from pytorch_metric_learning import miners, losses
 
+import os
 import cv2
 import numpy as np
 from tqdm import tqdm
-
-class MixedEdgeImage(ImageOnlyTransform):
-    def __init__(
-        self,
-        alpha=0.3,
-        beta=0.7,
-        always_apply=False,
-        p=1
-    ):
-        super(MixedEdgeImage, self).__init__(always_apply, p)
-        self.alpha = alpha
-        self.beta = beta
-        
-    def apply(self, img, **params):
-        return self.mixed_edge_image(img)
-    
-    def mixed_edge_image(self, img) :
-        canny_img = cv2.Canny(img, 100, 200, apertureSize=7)
-        empty_img = np.zeros((canny_img.shape[0], canny_img.shape[1], 3))
-        for i in range(3):
-            empty_img[:,:,i] = canny_img
-        return np.uint8(empty_img *self.alpha + img * self.beta)
-    
-    def get_transform_init_args_names(self):
-        return ("alpha", "beta")
-    
+from glob import glob
+import pandas as pd
     
 class BaseMain(Trainer, Predictor, DatasetCreater) :
     def __init__(self, **cfg) -> None:
         super().__init__()
-        self.model = BaseModel(**cfg).to(cfg["device"])
-        self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
-        # self.criterion = AsymmetricLoss().to(cfg["device"])
-        self.criterion = AsymmetricLossSingleLabel().to(cfg["device"])
         
-        # self.criterion = nn.CrossEntropyLoss().to("cuda")
-        # self.criterion=nn.BCEWithLogitsLoss().to("cuda")
-        # self.miner = miners.MultiSimilarityMiner()
-        # self.criterion = losses.TripletMarginLoss()
-        # self.criterion = nn.CrossEntropyLoss(weight=torch.tensor(get_loss_weight(cfg["data_path"])).to("cuda"))
-        #FocalLoss(alpha=cfg["focal_alpha"], gamma=cfg["focal_gamma"])
-        # self.scheduler = CosineAnnealingLR(self.optimizer, T_max=60, eta_min=5e-4)
+        self.CNN_model = DivBaseModel(**cfg).to(cfg["device"])
+        self.Transformer_model = DivBaseModel(**cfg).to(cfg["device"])
+        
+        self.optimizer = AdamW(self.model.parameters(), lr=cfg["learning_rate"])
+        self.criterion = AsymmetricLoss().to(cfg["device"])
+        
         
         if cfg["mode"] == 'train' :
             self.train_loader, self.valid_loader = self.create_dataloader([self.get_transform('train', **cfg), 
@@ -68,83 +40,28 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
             
     def train(self, **cfg) :
         self.run(**cfg)
-        
-    def train_on_batch(self, img, label, **cfg) :
-        self.optimizer.zero_grad()
-
-        img = img.to(cfg["device"])
-        label = label.to(cfg["device"])
-        
-        # if cfg["binary_mode"] :
-        #     mixup_label = torch.argmax(label, dim=1)
-        #     # if np.random.binomial(n=1, p=0.5) :
-        #     img, lam, label_a, label_b = mixup(img, mixup_label)
-        #     # img, lam, label_a, label_b = mixup(img, label)
-            
-
-        #     label_a = torch.FloatTensor([[1 if i == a else 0 for i in range(len(cfg["label_name"])) ] for a in label_a]).to(cfg["device"])
-        #     label_b = torch.FloatTensor([[1 if i == b else 0 for i in range(len(cfg["label_name"])) ] for b in label_b]).to(cfg["device"])
-        # else :
-        #     img, lam, label_a, label_b = mixup(img, label)
-    
-        output = self.model(img)
-        # loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
-        loss = self.criterion(output, label.type(torch.float32))
-        loss.backward()
-        self.optimizer.step()
-        
-        # acc = score(mixup_label, output)
-        acc = score(label, output)
-        # acc = score(torch.argmax(label, dim=1), output)
-
-        
-        batch_metric = {
-            "acc" : acc,
-            "loss" : loss.item()
-        }
-        
-        return batch_metric 
-
-    def valid_on_batch(self, img, label, **cfg):
-        img = img.to(cfg["device"])
-        label = label.to(cfg["device"])
-        
-        if cfg["binary_mode"] :
-            mixup_label = torch.argmax(label, dim=1)
-        
-            output = self.model(img)
-            loss = self.criterion(output, label.type(torch.float32))
-            
-            acc = score(mixup_label, output)
-        else :        
-            output = self.model(img)
-            loss = self.criterion(output, label)
-            
-            acc = score(label, output)
-        batch_metric = {
-            "acc" : acc,
-            "loss" : loss.item()
-        }
-        
-        return batch_metric
+           
        
     def infer(self, **cfg) :
         self.prediction(**cfg)
     
-    # def predict_on_batch(self, img, **cfg) :
-        
-    #     img = img.to(cfg["device"])
-    #     output = self.model(img)
-        
-    #     # output = output * cfg["label_weight"]
-    #     output = output.detach().cpu() * np.array([[cfg["label_weight"]] * output.shape[0]])[0]
+    def predict_on_batch(self, img, **cfg) :
+        img = img.to(cfg["device"])
+        return torch.sigmoid(self.model(img)).detach().cpu().numpy().tolist()
+    
+    def save_to_csv(self, results, **cfg) :
+        _label_dec = label_dec(cfg["label_name"])
+        _label_enc = label_enc(cfg["label_name"])
 
-    #     # binary_ = torch.softmax(output, dim=1)
-    #     # binary_[binary_  > 0.9] = 1 
-    #     # binary_[binary_  <= 0.9] = 0 
-    #     # return output.argmax(1).detach().cpu().numpy().tolist()
+        df_label_score_list = {n:[] for idx, n in enumerate(cfg["label_name"])}
+        df_label_score_list['id'] = [p for p in glob(os.path.join(cfg["data_path"], "*"))]
         
-    #     return output.argmax(1).numpy().tolist()
+        for idx, res in enumerate(results) :            
+            for i in range(len(cfg['label_name'])) :
+                df_label_score_list[_label_dec[i]].append(res[i])
+                
+        df = pd.DataFrame(df_label_score_list)
+        df.to_csv(os.path.join(cfg["output_path"], "ensemble_sigmoid_score.csv"), index=False, encoding="utf-8")
     
     def get_transform(self, _mode, **cfg) :
         resize = cfg["resize"]
@@ -214,10 +131,10 @@ if __name__ == "__main__" :
         
         "binary_mode" : False,
         "reuse" : False, #True, #False
-        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling/69E-val0.9720735896756305-tf_efficientnetv2_s.in21k.pth",
+        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/resize300_mixup_CEloss/22E-val0.8811827300038849-tf_efficientnetv2_s.in21k.pth",
         
-        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling",
-        "output_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling",
+        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/resize300_mixup_CEloss",
+        "output_path" : "./output/tf_efficientnetv2_s.in21k/resize300_mixup_CEloss",
         
         "device" : "cuda",
         "label_name" : ["가구수정", "걸레받이수정", "곰팡이", "꼬임", "녹오염", "들뜸",

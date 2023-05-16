@@ -4,6 +4,7 @@ from datasets import DatasetCreater, SigmoidCustomDataset
 from models import BaseModel
 from loss_fn import FocalLoss, AsymmetricLoss
 from utils import save_config, mixup, cutmix, score, get_loss_weight, label_dec, label_enc
+from optim_fn import SAM
 
 import torch
 import torch.nn as nn
@@ -28,6 +29,9 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         self.model = BaseModel(**cfg).to(cfg["device"])
         self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
         self.criterion = AsymmetricLoss().to(cfg["device"])
+        
+        # self.base_optimizer = Adam()
+        # self.optimizer = SAM(self.model.parameters(), Adam, lr=cfg["learning_rate"]) # momentum=0.9
         # self.criterion = nn.CrossEntropyLoss().to("cuda")
         # self.criterion=nn.BCEWithLogitsLoss().to("cuda")
         # self.miner = miners.MultiSimilarityMiner()
@@ -61,10 +65,15 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         
         
     def step_train(self, **cfg) :
-        for i in range(2, 6) :
+        for i in range(1, 6) :
+                
             print(f"=========== STEP {i} ===========")
             cfg["mode"] ='train'
             cfg["data_path"] = "./data/train"
+            
+            if i != 3 :
+                save_config(cfg, cfg["save_path"], save_name=cfg["mode"]+"_config")
+                
             self.model = BaseModel(**cfg).to(cfg["device"])
             self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
             self.criterion = AsymmetricLoss().to(cfg["device"])
@@ -78,13 +87,15 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
             self.test_loader = self.create_dataloader(self.get_transform('infer', **cfg), **cfg)
             self.prediction(**cfg)
             
-            cfg["save_path"] = cfg["save_path"].replace("step"+str(i), "step"+str(i+1))
-            cfg["output_path"] = cfg["save_path"].replace("step"+str(i), "step"+str(i+1))
-            
             cfg["sigmoid_labeling_path"] = os.path.join(cfg["output_path"], "sigmoid_labeling.csv")
+            cfg["save_path"] = cfg["save_path"].replace("step"+str(i), "step"+str(i+1))
+            cfg["output_path"] = cfg["output_path"].replace("step"+str(i), "step"+str(i+1))
+            
+            
             
             
     def train_on_batch(self, img, label, **cfg) :
+        
         self.optimizer.zero_grad()
 
         img = img.to(cfg["device"])
@@ -103,14 +114,27 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         
         else :
             img, lam, label_a, label_b = mixup(img, label)
+
+        # def closure():
+        #     loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
+        #     loss.backward()
+        #     return loss        
     
         output = self.model(img)
-        # loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
+        # loss = self.criterion(output, label)
         loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
-                
+        
+        # loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
         loss.backward()
         self.optimizer.step()
+        # self.optimizer.first_step(zero_grad=True)
         
+        # output = self.model(img)
+        # loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
+        # loss.backward()
+        # self.optimizer.second_step(zero_grad=True)
+        # self.optimizer.step(closure)
+        # self.optimizer.zero_grad()
         # acc = score(mixup_label, output)
         # acc = score(label, output)
         acc = score(torch.argmax(label, dim=1), output)
@@ -191,7 +215,8 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
                 train_sig_label = []
                 for p in tqdm(train_img):
                     label_name = p.split("\\")[-2]
-                    original_filename = p.split("\\")[-1].split("_")[-1]  if "_" in  p.split("\\")[-1] else  p.split("\\")[-1]
+                    # original_filename = p.split("\\")[-1].split("_")[-1]  if "_" in  p.split("\\")[-1] else  p.split("\\")[-1]
+                    original_filename = p.split("\\")[-1].split("_")[0] + ".png"  if "_" in p.split("\\")[-1] else  p.split("\\")[-1]
                     sig_id = os.path.join("./data/noaug_ori_train", label_name, original_filename)
                     
                     train_sig_label.append([round(sig_label[sig_label['id'] == sig_id][n].item(), 4) for n in cfg["label_name"]])
@@ -199,7 +224,8 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
                 valid_sig_label = []
                 for p in tqdm(valid_img):
                     label_name = p.split("\\")[-2]
-                    original_filename = p.split("\\")[-1].split("_")[-1]  if "_" in  p.split("\\")[-1] else  p.split("\\")[-1]
+                    # original_filename = p.split("\\")[-1].split("_")[-1]  if "_" in  p.split("\\")[-1] else  p.split("\\")[-1]
+                    original_filename = p.split("\\")[-1].split("_")[0] + ".png" if "_" in p.split("\\")[-1] else  p.split("\\")[-1]
                     sig_id = os.path.join("./data/noaug_ori_train", label_name, original_filename)
                     
                     valid_sig_label.append([round(sig_label[sig_label['id'] == sig_id][n].item(), 4) for n in cfg["label_name"]])
@@ -246,22 +272,56 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
                 A.OneOf([
                     A.CLAHE(p=1),
                     A.ImageCompression(p=1),
+                    A.ColorJitter(p=1),
+                    A.ToGray(p=1),
+                    A.RandomBrightnessContrast(p=1),
+                    A.ChannelShuffle(p=1),
+                    A.ToSepia(p=1),
+                    A.RandomToneCurve(scale=0.2, p=1)
                 ],p=1),
-                A.RandomBrightnessContrast(brightness_limit=(-0.3, -0.1), p=0.6),
+                
+                A.OneOf([
+                    A.GlassBlur(sigma=0.5, max_delta=2, p=1),
+                    A.Blur(p=1),
+                    A.Downscale(scale_min=0.1, scale_max=0.3, p=1),
+                    A.Superpixels(p=1)
+                ], p=0.6),
+                
+                A.OneOf([
+                    A.Emboss(p=1),
+                    A.Sharpen(p=1), 
+                    A.FancyPCA(p=1),
+                ], p=0.8),
+                
                 A.OneOf([
                     A.GridDistortion(p=1, 
                         always_apply=False, 
                         num_steps=1, 
-                        distort_limit=(-0.1, 0.3), 
+                        distort_limit=(0, 0.4), 
                         interpolation=2, 
-                        border_mode=2, 
+                        border_mode=3, 
                         value=(0, 0, 0), 
                         mask_value=None),
-                    A.OpticalDistortion(p=1,
-                        distort_limit=0.4, shift_limit=0.04),    
-                ],p=0.5),                
+                    A.OpticalDistortion(p=1, border_mode=3,
+                        distort_limit=0.3, shift_limit=0.3),
+                ],p=1),
+                                
                 A.ElasticTransform(p=0.7, 
                     alpha=120, sigma=120 * 0.1, alpha_affine=120 * 0.1),
+                
+                A.OneOf([
+                    A.Posterize(num_bits=4, p=1),
+                    A.Equalize(by_channels=False,p=1),                        
+                ], p=0.5),
+                
+                A.OneOf([
+                    A.Spatter(intensity=0.2, p=1),
+                    A.RandomShadow(p=1),
+                    A.Cutout(num_holes=12, p=1),
+                    A.RandomRain(brightness_coefficient=1,
+                                 drop_color=(50, 50, 50), p=1)
+                ], p=1),
+                
                 # A.RandomGridShuffle((3, 3), p=0.4),
                 A.Normalize(),
                 ToTensorV2()
@@ -283,41 +343,50 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
 if __name__ == "__main__" :
     
     cfg = {
-        "mode" : "infer", #train, #infer
+        "mode" : "train", #train, #infer
         
         "error_rate" : False,
         "sigmoid_labeling" : True,
-        "sigmoid_labeling_path" : "./output/tf_efficientnetv2_m.in21k/sigmoid_labeling_scratch_asyloss_step1/sigmoid_labeling.csv",
+        # "sigmoid_labeling_path": "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling/sigmoid_labeling.csv",
+        "sigmoid_labeling_path": "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step4/sigmoid_labeling.csv",
+
         "sigmoid_norm" : 0.5,
         
-        "model_name" : "tf_efficientnetv2_m.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
-        #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",#"beit_base_patch16_224.in22k_ft_in22k",
+        "model_name" : "tf_efficientnetv2_s.in21k",#"dm_nfnet_f2.dm_in1k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
+        #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",#"beit_base_patch16_224.in22k_ft_in22k", #"maxvit_tiny_rw_224.sw_in1k"
         "num_classes" : 19,
         
         "learning_rate" : 1e-4,
         "focal_alpha" : 2,
         "focal_gamma" : 2,
-        "resize" : 300,
+        "resize" : 300, # 300
         
-        "data_path" : "./data/noaug_ori_train/*",#"./data/noaug_ori_train/*", #"./data/combine_train",#"./data/train",#"./data/test",
-        "epochs" : 140,
+        "data_path" : "./data/test",#oversampling_train,#"./data/noaug_ori_train/*", #"./data/combine_train",#"./data/train",#"./data/test",
+        "epochs" : 80,
         "batch_size" : 16,
         "num_worker" : 2,
         "early_stop_patient" : 10,
         
         "binary_mode" : False,
         "reuse" : False, #True, #False
-        "weight_path" : "./ckpt/tf_efficientnetv2_m.in21k/sigmoid_labeling_scratch_asyloss_step1/30E-val0.8888393669619724-tf_efficientnetv2_m.in21k.pth",
+        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling/69E-val0.9720735896756305-tf_efficientnetv2_s.in21k.pth",
         
-        "save_path" : "./ckpt/tf_efficientnetv2_m.in21k/sigmoid_labeling_scratch_asyloss_step2",
-        "output_path" : "./output/tf_efficientnetv2_m.in21k/sigmoid_labeling_scratch_asyloss_step2",
+        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling",
+        "output_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling",
         
         "device" : "cuda",
         "label_name" : ["가구수정", "걸레받이수정", "곰팡이", "꼬임", "녹오염", "들뜸",
                         "면불량", "몰딩수정", "반점", "석고수정", "오염", "오타공", "울음",
-                        "이음부불량", "창틀,문틀수정", "터짐", "틈새과다", "피스", "훼손",]
+                        "이음부불량", "창틀,문틀수정", "터짐", "틈새과다", "피스", "훼손",],
+        
+        # pred weight
+        "label_weight" : [0.7666686290865917, 0.7261767277215512,0.738474800154709, 0.7536669073754095, 0.7848826747173203, 
+                          0.7657658643255456, 0.7158896209947423, 0.7260579484233907, 0.7485242309606435, 0.6422744210327779, 
+                          0.552108503121636, 0.6986621176537868, 0.6401662469548162,  0.7378511773074832,  0.768388257281936,
+                          0.7482707985553708, 0.8101942504483788, 0.7820480751627472, 0.39420923444967515]
     }        
-    
+
+        
     if cfg["mode"] == "train" :
         cfg["shuffle"] = True
     elif cfg["mode"] == "infer" :
@@ -329,7 +398,27 @@ if __name__ == "__main__" :
     
     if cfg["mode"] == "train" :
         base_main.train(**cfg)
+        # base_main.step_train(**cfg)
     elif cfg["mode"] == "infer" :
         base_main.infer(**cfg)
-    
-    
+
+    # for i in range(1, 6) :
+    #     print(f"=========== STEP {i} ===========")
+    #     cfg["mode"] ='train'
+    #     cfg["data_path"] = "./data/train"
+        
+    #     save_config(cfg, cfg["save_path"], save_name=cfg["mode"]+"_config")
+        
+    #     base_main = BaseMain(**cfg)
+    #     base_main.train(**cfg)
+
+    #     cfg["mode"] = 'infer'
+    #     cfg["data_path"] = "./data/noaug_ori_train/*" 
+    #     cfg["weight_path"] = os.path.join(cfg["save_path"], sorted([i for i in os.listdir(cfg["save_path"]) if ".pth" in i], key=lambda x:int(x.split("-")[0].replace("E","")))[-1])
+    #     base_main = BaseMain(**cfg)
+    #     base_main.infer(**cfg)
+        
+    #     cfg["sigmoid_labeling_path"] = os.path.join(cfg["output_path"], "sigmoid_labeling.csv")
+    #     cfg["save_path"] = cfg["save_path"].replace("step"+str(i), "step"+str(i+1))
+    #     cfg["output_path"] = cfg["output_path"].replace("step"+str(i), "step"+str(i+1))
+            

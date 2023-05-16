@@ -38,7 +38,67 @@ class SigmoidCustomDataset(Dataset):
 
         else:
             return image
+
+class MultiHeadCustomDataset(Dataset):
+    def __init__(self, imgs, labels, transform=None, senario=1):
+        self.imgs = imgs
+        self.labels = labels
+        self.label_enc = label_enc(sorted(set(labels))) if labels != None else None
+        self.transform = transform
+        self.senario = senario
         
+        self.first_group = {"곰팡이":0, "녹오염":0, "오염":0, "반점":0, 
+                            "가구수정":1, "걸레받이수정":1, "몰딩수정":1, "석고수정":1, "창틀,문틀수정":1, 
+                            "꼬임":2, "들뜸":2, "울음":2, "면불량":2, "터짐":2, 
+                            "틈새과다":3, "이음부불량":3, 
+                            "오타공":4, "피스":4, 
+                            "훼손":5}
+        self.second_group = [{"곰팡이":0, "녹오염":1, "오염":2, "반점":3}, 
+                            {"가구수정":0, "걸레받이수정":1, "몰딩수정":2, "석고수정":3, "창틀,문틀수정":4},
+                            {"꼬임":0, "들뜸":1, "울음":2, "면불량":3, "터짐":4},
+                            {"틈새과다":0, "이음부불량":1},
+                            {"오타공":0, "피스":1},
+                            {"훼손":0}]
+        
+    def __len__(self):
+        return len(self.imgs)
+
+    def __getitem__(self, index):
+        img_path = self.imgs[index]
+        
+        image = load_img(img_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
+        if self.transform :
+            image = self.transform(image=image)['image']
+
+        if self.labels is not None:
+            label_name = self.labels[index]
+            # label = self.label_enc[label_name]
+            label = torch.tensor(self.binary_encoder(self.label_enc[label_name]), dtype=torch.long)
+
+            first_grouping = self.first_group[label_name]
+            second_grouping = self.second_group[first_grouping][label_name]
+            
+            second_mask = [0 for i in range(len(self.first_group))]
+            total_len = sum([len(self.second_group[i]) for i in range(first_grouping)])
+            
+
+            
+            if self.senario == 1 :     
+                second_mask[total_len : total_len + len(self.second_group[first_grouping])] = [1 if i == second_grouping else 0 for i in range(len(self.second_group[first_grouping]))]
+            elif self.senario == 2 :
+                second_mask[total_len : total_len + len(self.second_group[first_grouping])] = [1 for i in range(len(self.second_group[first_grouping]))]
+
+            return image, label, first_grouping, torch.tensor(second_mask, dtype=torch.bool)
+
+        else:
+            return image
+    
+    def binary_encoder(self, label):
+        total_label_len = len(self.label_enc.keys())
+        return [1 if i == label else 0 for i in range(total_label_len) ]
+    
 
 class CustomDataset(Dataset):
     def __init__(self, imgs, labels, transform=None, binary_mode=False):

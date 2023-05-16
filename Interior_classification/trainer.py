@@ -17,25 +17,25 @@ class Trainer() :
         self.early_stop_cnt = 0
         
     def run(self, **cfg) :
-        start_epoch = self.weight_load(cfg["weight_path"]) if cfg["reuse"] else 0
+        start_epoch = self.train_weight_load(cfg["weight_path"]) if cfg["reuse"] else 0
             
         for e in range(start_epoch, cfg["epochs"]) :
             self.train_on_epoch(e, **cfg)
             valid_acc = self.valid_on_epoch(e, **cfg)
-            
             self.save_checkpoint(e, valid_acc, **cfg)
             
             if self.early_stop_cnt == cfg["early_stop_patient"] :
                 print("=== EARLY STOP ===")
                 break
     
-    def weight_load(self, weight_path) :
+    def train_weight_load(self, weight_path) :
         checkpoint = torch.load(weight_path)
         self.model.load_state_dict(checkpoint['model_state_dict'])        
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         return checkpoint['epoch'] + 1
         
     def train_on_epoch(self, epoch, **cfg):
+        self.model.train()
         train_acc, train_loss = [], []
         tqdm_train = tqdm(self.train_loader)
         for img, label in tqdm_train :
@@ -74,6 +74,7 @@ class Trainer() :
         return batch_metric 
     
     def valid_on_epoch(self, epoch, **cfg):
+        self.model.eval()
         valid_acc, valid_loss = [], []
         tqdm_valid = tqdm(self.valid_loader)
         for img, label in tqdm_valid :

@@ -14,7 +14,7 @@ class Predictor() :
         pass
         
     def prediction(self, **cfg) :
-        self.weight_load(cfg["weight_path"])
+        self.pred_weight_load(cfg["weight_path"])
         self.model.eval()        
         model_preds = []
         with torch.no_grad() :
@@ -38,6 +38,17 @@ class Predictor() :
         df.to_csv(os.path.join(cfg["output_path"],os.path.splitext(cfg["weight_path"].split("/")[-1])[0])+".csv", 
                   index=False)
     
-    def weight_load(self, weight_path) :
+    def pred_weight_load(self, weight_path) :
         checkpoint = torch.load(weight_path)
         self.model.load_state_dict(checkpoint['model_state_dict'])
+    
+    # def pred_weight_load(self, weight_path) :
+    #     checkpoint = torch.load(weight_path)
+    #     # self.model.load_state_dict(checkpoint['model_state_dict'])
+    #     self.base_model.load_state_dict(checkpoint["base_model_state_dict"]),
+    #     self.head_1.load_state_dict(checkpoint["head_1_state_dict"]),
+    #     self.head_2.load_state_dict(checkpoint["head_2_state_dict"]),
+    #     self.head_3.load_state_dict(checkpoint["head_3_state_dict"]),
+    #     self.head_4.load_state_dict(checkpoint["head_4_state_dict"]),
+    #     self.head_5.load_state_dict(checkpoint["head_5_state_dict"]),
+    #     self.head_6.load_state_dict(checkpoint["head_6_state_dict"]),
