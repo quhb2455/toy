@@ -266,35 +266,36 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
     def get_transform(self, _mode, **cfg) :
         resize = cfg["resize"]
         if _mode == 'train' :
-            return A.Compose([
-                A.Resize(resize, resize),
-                # MixedEdgeImage(alpha=0.15, beta=0.85, p=0.5),
-                A.OneOf([
-                    A.CLAHE(p=1),
-                    A.ImageCompression(p=1),
-                    A.ColorJitter(p=1),
-                    A.ToGray(p=1),
-                    A.RandomBrightnessContrast(p=1),
-                    A.ChannelShuffle(p=1),
-                    A.ToSepia(p=1),
-                    A.RandomToneCurve(scale=0.2, p=1)
-                ],p=1),
-                
-                A.OneOf([
-                    A.GlassBlur(sigma=0.5, max_delta=2, p=1),
-                    A.Blur(p=1),
-                    A.Downscale(scale_min=0.1, scale_max=0.3, p=1),
-                    A.Superpixels(p=1)
-                ], p=0.6),
-                
-                A.OneOf([
-                    A.Emboss(p=1),
-                    A.Sharpen(p=1), 
-                    A.FancyPCA(p=1),
-                ], p=0.8),
-                
-                A.OneOf([
-                    A.GridDistortion(p=1, 
+            return A.OneOf([
+                A.Compose([
+                    A.Resize(resize, resize),
+                    # MixedEdgeImage(alpha=0.15, beta=0.85, p=0.5),
+                    # A.OneOf([
+                    A.CLAHE(p=0.7),
+                    A.ImageCompression(p=0.7),
+                    A.ColorJitter(p=0.7),
+                    A.ToGray(p=0.7),
+                    A.RandomBrightnessContrast(p=0.7),
+                    A.ChannelShuffle(p=0.7),
+                    A.ToSepia(p=0.7),
+                    A.RandomToneCurve(scale=0.2, p=0.7),
+                    # ],p=1),
+                    
+                    A.OneOf([
+                        A.GlassBlur(sigma=0.5, max_delta=2, p=1),
+                        A.Blur(p=1),
+                        # A.Downscale(scale_min=0.1, scale_max=0.3, p=1),
+                        A.Superpixels(p=1)
+                    ], p=0.7),
+                    
+                    # A.OneOf([
+                    A.Emboss(p=0.7),
+                    A.Sharpen(p=0.7), 
+                    A.FancyPCA(p=0.7),
+                    # ], p=0.8),
+                    
+                    # A.OneOf([
+                    A.GridDistortion(p=0.7, 
                         always_apply=False, 
                         num_steps=1, 
                         distort_limit=(0, 0.4), 
@@ -302,30 +303,41 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
                         border_mode=3, 
                         value=(0, 0, 0), 
                         mask_value=None),
-                    A.OpticalDistortion(p=1, border_mode=3,
+                    A.OpticalDistortion(p=0.7, border_mode=3,
                         distort_limit=0.3, shift_limit=0.3),
-                ],p=1),
-                                
-                A.ElasticTransform(p=0.7, 
-                    alpha=120, sigma=120 * 0.1, alpha_affine=120 * 0.1),
-                
-                A.OneOf([
-                    A.Posterize(num_bits=4, p=1),
-                    A.Equalize(by_channels=False,p=1),                        
-                ], p=0.5),
-                
-                A.OneOf([
-                    A.Spatter(intensity=0.2, p=1),
-                    A.RandomShadow(p=1),
-                    A.Cutout(num_holes=12, p=1),
+                    # ],p=1),
+                                    
+                    A.ElasticTransform(p=0.7, 
+                        alpha=120, sigma=120 * 0.1, alpha_affine=120 * 0.1),
+                    
+                    # A.OneOf([
+                    A.Posterize(num_bits=4, p=0.5),
+                    A.Equalize(by_channels=False,p=0.5),
+                    # ], p=0.5),
+                    
+                    # A.OneOf([
+                    A.Spatter(intensity=0.2, p=0.5),
+                    A.RandomShadow(p=0.5),
+                    A.CoarseDropout(min_holes=24, max_holes=24, max_height=10, min_height=10 ,p=1),
                     A.RandomRain(brightness_coefficient=1,
-                                 drop_color=(50, 50, 50), p=1)
-                ], p=1),
-                
-                # A.RandomGridShuffle((3, 3), p=0.4),
-                A.Normalize(),
-                ToTensorV2()
-            ])
+                                    drop_color=(50, 50, 50), p=1),
+                    # ], p=1),
+                    
+                    # A.RandomGridShuffle((3, 3), p=0.4),
+                    A.Normalize(),
+                    ToTensorV2()
+            ], p=1), 
+                A.Compose([
+                    A.Resize(resize, resize),
+                    A.Spatter(intensity=0.2, p=0.5),
+                    A.RandomShadow(p=0.5),
+                    A.CoarseDropout(min_holes=24, max_holes=24, max_height=10, min_height=10 ,p=1),
+                    A.RandomRain(brightness_coefficient=1,
+                                    drop_color=(50, 50, 50), p=1),
+                    A.Normalize(),
+                    ToTensorV2()
+            ], p=1)], p=1)
+            
         elif _mode == 'valid' :
             return A.Compose([
                 A.Resize(resize, resize),
@@ -361,7 +373,7 @@ if __name__ == "__main__" :
         "focal_gamma" : 2,
         "resize" : 300, # 300
         
-        "data_path" : "./data/test",#oversampling_train,#"./data/noaug_ori_train/*", #"./data/combine_train",#"./data/train",#"./data/test",
+        "data_path" : "./data/oversampling_train",#oversampling_train,#"./data/noaug_ori_train/*", #"./data/combine_train",#"./data/train",#"./data/test",
         "epochs" : 80,
         "batch_size" : 16,
         "num_worker" : 2,
@@ -369,10 +381,10 @@ if __name__ == "__main__" :
         
         "binary_mode" : False,
         "reuse" : False, #True, #False
-        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling/69E-val0.9720735896756305-tf_efficientnetv2_s.in21k.pth",
+        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling_ModifiedAug2/24E-val0.8545489091407458-tf_efficientnetv2_s.in21k.pth",
         
-        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling",
-        "output_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling",
+        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling_ModifiedAug2",
+        "output_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling_ModifiedAug2",
         
         "device" : "cuda",
         "label_name" : ["가구수정", "걸레받이수정", "곰팡이", "꼬임", "녹오염", "들뜸",
@@ -387,38 +399,38 @@ if __name__ == "__main__" :
     }        
 
         
-    if cfg["mode"] == "train" :
-        cfg["shuffle"] = True
-    elif cfg["mode"] == "infer" :
-        cfg["shuffle"] = False
+    # if cfg["mode"] == "train" :
+    #     cfg["shuffle"] = True
+    # elif cfg["mode"] == "infer" :
+    #     cfg["shuffle"] = False
     
-    save_config(cfg, cfg["save_path"], save_name=cfg["mode"]+"_config")
+    # save_config(cfg, cfg["save_path"], save_name=cfg["mode"]+"_config")
     
-    base_main = BaseMain(**cfg)
+    # base_main = BaseMain(**cfg)
     
-    if cfg["mode"] == "train" :
-        base_main.train(**cfg)
-        # base_main.step_train(**cfg)
-    elif cfg["mode"] == "infer" :
-        base_main.infer(**cfg)
-
-    # for i in range(1, 6) :
-    #     print(f"=========== STEP {i} ===========")
-    #     cfg["mode"] ='train'
-    #     cfg["data_path"] = "./data/train"
-        
-    #     save_config(cfg, cfg["save_path"], save_name=cfg["mode"]+"_config")
-        
-    #     base_main = BaseMain(**cfg)
+    # if cfg["mode"] == "train" :
     #     base_main.train(**cfg)
-
-    #     cfg["mode"] = 'infer'
-    #     cfg["data_path"] = "./data/noaug_ori_train/*" 
-    #     cfg["weight_path"] = os.path.join(cfg["save_path"], sorted([i for i in os.listdir(cfg["save_path"]) if ".pth" in i], key=lambda x:int(x.split("-")[0].replace("E","")))[-1])
-    #     base_main = BaseMain(**cfg)
+    #     # base_main.step_train(**cfg)
+    # elif cfg["mode"] == "infer" :
     #     base_main.infer(**cfg)
+
+    for i in range(1, 6) :
+        print(f"=========== STEP {i} ===========")
+        cfg["mode"] ='train'
+        cfg["data_path"] = "./data/train"
         
-    #     cfg["sigmoid_labeling_path"] = os.path.join(cfg["output_path"], "sigmoid_labeling.csv")
-    #     cfg["save_path"] = cfg["save_path"].replace("step"+str(i), "step"+str(i+1))
-    #     cfg["output_path"] = cfg["output_path"].replace("step"+str(i), "step"+str(i+1))
+        save_config(cfg, cfg["save_path"], save_name=cfg["mode"]+"_config")
+        
+        base_main = BaseMain(**cfg)
+        base_main.train(**cfg)
+
+        cfg["mode"] = 'infer'
+        cfg["data_path"] = "./data/noaug_ori_train/*" 
+        cfg["weight_path"] = os.path.join(cfg["save_path"], sorted([i for i in os.listdir(cfg["save_path"]) if ".pth" in i], key=lambda x:int(x.split("-")[0].replace("E","")))[-1])
+        base_main = BaseMain(**cfg)
+        base_main.infer(**cfg)
+        
+        cfg["sigmoid_labeling_path"] = os.path.join(cfg["output_path"], "sigmoid_labeling.csv")
+        cfg["save_path"] = cfg["save_path"].replace("step"+str(i), "step"+str(i+1))
+        cfg["output_path"] = cfg["output_path"].replace("step"+str(i), "step"+str(i+1))
             

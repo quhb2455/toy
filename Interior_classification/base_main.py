@@ -214,10 +214,10 @@ if __name__ == "__main__" :
         
         "binary_mode" : False,
         "reuse" : False, #True, #False
-        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling/69E-val0.9720735896756305-tf_efficientnetv2_s.in21k.pth",
+        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling_ModifiedAug2/24E-val0.8545489091407458-tf_efficientnetv2_s.in21k.pth",
         
-        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling",
-        "output_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling",
+        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling_ModifiedAug2",
+        "output_path" : "./output/tf_efficientnetv2_s.in21k/sigmoid_labeling_scratch_asyloss_step5_OverSampling_ModifiedAug2",
         
         "device" : "cuda",
         "label_name" : ["가구수정", "걸레받이수정", "곰팡이", "꼬임", "녹오염", "들뜸",
