@@ -4,6 +4,7 @@ import torch
 import numpy as np
 import os
 from tqdm import tqdm
+import time
 
 class Trainer() :
     def __init__(self) -> None:
@@ -17,7 +18,7 @@ class Trainer() :
         self.early_stop_cnt = 0
         
     def run(self, **cfg) :
-        self.log = logging(cfg["log_path"])
+        self.log = logging(os.path.join(cfg["log_path"], cfg["model_name"], time.strftime('%Y%m%d_%H_%M_%S', time.localtime())))
         
         start_epoch = self.train_weight_load(cfg["weight_path"]) if cfg["reuse"] else 0
             
