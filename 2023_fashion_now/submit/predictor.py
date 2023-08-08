@@ -43,7 +43,9 @@ class Predictor() :
             "color" : results,
         })
         # df.to_csv(os.path.join(cfg["output_path"],os.path.splitext(cfg["weight_path"].split("/")[-1])[0])+".csv", index=False)
+        
         return df
+        
         
     
     def pred_weight_load(self, weight_path, device) :

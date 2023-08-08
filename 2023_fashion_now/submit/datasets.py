@@ -156,7 +156,7 @@ class DatasetCreater() :
                     CustomDataset(img_path[1], label_list[1], bbox_list[1], transform=transform[1], binary_mode=cfg["binary_mode"])]
             
         elif cfg["mode"] == 'infer' :
-            save_config(transform.to_dict(), cfg["output_path"], save_name="infer_transform")
+            # save_config(transform.to_dict(), cfg["output_path"], save_name="infer_transform")
             return CustomDataset(img_path, label_list, bbox_list, transform=transform)
     
 

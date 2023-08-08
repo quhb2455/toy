@@ -23,7 +23,7 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         super().__init__()
         self.model = BaseModel(**cfg).to(cfg["device"])
         self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
-        self.criterion = FocalLoss(alpha=cfg["focal_alpha"],gamma=cfg["focal_gamma"]).to("cuda")
+        self.criterion = FocalLoss(alpha=cfg["focal_alpha"],gamma=cfg["focal_gamma"]).to(cfg["device"])
         # self.scheduler = CosineAnnealingLR(self.optimizer, T_max=60, eta_min=5e-4)
         
         if cfg["mode"] == 'train' :
@@ -133,10 +133,10 @@ if __name__ == "__main__" :
         "data_valid_path" : "./sub-task2/Dataset/Validation",
         "data_valid_csv_path" : "./sub-task2/Dataset/info_etri20_color_validation.csv",
         
-        "data_infer_path" : "/aif/Dataset/Test/",
-        "data_infer_csv_path" : "/aif/Dataset/info_etri20_color_test.csv",
-        # "data_infer_path" : "./sub-task2/Dataset/Test_sample",
-        # "data_infer_csv_path" : "./sub-task2/Dataset/info_etri20_color_test_sample.csv",
+        # "data_infer_path" : "/aif/Dataset/Test/",
+        # "data_infer_csv_path" : "/aif/Dataset/info_etri20_color_test.csv",
+        "data_infer_path" : "./sub-task2/Dataset/Test_sample",
+        "data_infer_csv_path" : "./sub-task2/Dataset/info_etri20_color_test_sample.csv",
         
         "epochs" : 80,
         "batch_size" : 32,
@@ -149,12 +149,13 @@ if __name__ == "__main__" :
         "save_path" : "./sub-task2/ckpt/tf_efficientnetv2_s.in21k/18color_normal_classification",
         "output_path" : "./sub-task2/output/tf_efficientnetv2_s.in21k/18color_normal_classification",
         "log_path" : "./sub-task2/logging/18color_normal_classification",
-        "device" : "cuda",
+        "device" : "cpu",
         
         "binary_mode" : False,
         
         "note" : "Cutmix 사용, FocalLoss 사용, Adam Optim 사용"
-    }        
+    }
+    
     
     if cfg["mode"] == "train" :
         cfg["shuffle"] = True
@@ -168,6 +169,7 @@ if __name__ == "__main__" :
     if cfg["mode"] == "train" :
         base_main.train(**cfg)
     elif cfg["mode"] == "infer" :
-        base_main.infer(**cfg)
+        df = base_main.infer(**cfg)
+        print(df)
     
     
