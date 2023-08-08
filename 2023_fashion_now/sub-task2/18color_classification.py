@@ -23,7 +23,7 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         super().__init__()
         self.model = BaseModel(**cfg).to(cfg["device"])
         self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
-        self.criterion = FocalLoss(alpha=cfg["focal_alpha"],gamma=cfg["focal_gamma"]).to("cuda")
+        self.criterion = FocalLoss(alpha=cfg["focal_alpha"],gamma=cfg["focal_gamma"]).to(cfg["cuda"])
         # self.scheduler = CosineAnnealingLR(self.optimizer, T_max=60, eta_min=5e-4)
         
         if cfg["mode"] == 'train' :
