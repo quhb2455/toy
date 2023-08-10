@@ -23,7 +23,7 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         super().__init__()
         self.model = BaseModel(**cfg).to(cfg["device"])
         self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
-        self.criterion = FocalLoss(alpha=cfg["focal_alpha"],gamma=cfg["focal_gamma"]).to(cfg["cuda"])
+        self.criterion = FocalLoss(alpha=cfg["focal_alpha"],gamma=cfg["focal_gamma"]).to(cfg["device"])
         # self.scheduler = CosineAnnealingLR(self.optimizer, T_max=60, eta_min=5e-4)
         
         if cfg["mode"] == 'train' :
@@ -36,7 +36,7 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
     def train(self, **cfg) :
         self.run(**cfg)
         
-    def train_on_batch(self, img, label, **cfg) :
+    def train_on_batch(self, img, label, step, **cfg) :
         self.optimizer.zero_grad()
 
         img = img.to(cfg["device"])
@@ -62,7 +62,7 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         
         return batch_metric 
 
-    def valid_on_batch(self, img, label, **cfg):
+    def valid_on_batch(self, img, label, step, **cfg):
         img = img.to(cfg["device"])
         label = label.to(cfg["device"])
         
@@ -77,12 +77,15 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
             output = self.model(img)
             loss = self.criterion(output, label)
             
-            acc = score(label, output)
+            acc, cls_report = score(label, output, mode="valid")
+            
         batch_metric = {
             "acc" : acc,
-            "loss" : loss.item()
+            "loss" : loss.item(),
+            "labelAcc" : cls_report
         }
         
+        # self.logging({'LabelAcc' : cls_report}, step, mode='multi')
         return batch_metric
        
     def infer(self, **cfg) :
@@ -94,6 +97,14 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         if _mode == 'train' :
             return A.Compose([
                 A.Resize(resize, resize),
+                A.GlassBlur(sigma=1, max_delta=5,p=0.3),
+                A.RandomGridShuffle(grid=(4,4), p=0.5),
+                A.OneOf([
+                    A.Affine(rotate=(-180, 180), fit_output=False, mask_interpolation=1, mode=3),
+                    A.OpticalDistortion(border_mode=3,
+                            distort_limit=5, shift_limit=1),    
+                ], p=1),
+                
                 A.Normalize(),
                 ToTensorV2()
             ])
@@ -117,9 +128,9 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
 if __name__ == "__main__" :
     
     cfg = {
-        "mode" : "infer", #train, #infer
+        "mode" : "train", #train, #infer
         
-        "model_name" : "tf_efficientnetv2_s.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
+        "model_name" : "tf_efficientnetv2_m.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
         #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",#"beit_base_patch16_224.in22k_ft_in22k",
         "num_classes" : 18,
         
@@ -144,16 +155,16 @@ if __name__ == "__main__" :
         "early_stop_patient" : 10,
         
         "reuse" : False, #True, #False
-        "weight_path" : "./sub-task2/ckpt/tf_efficientnetv2_s.in21k/18color_normal_classification/11E-val0.585818040998962-tf_efficientnetv2_s.in21k.pth",
+        "weight_path" : "./sub-task2/ckpt/tf_efficientnetv2_m.in21k/centercrop_moreaug/7E-val0.5843784109409109-tf_efficientnetv2_s.in21k.pth",
         
-        "save_path" : "./sub-task2/ckpt/tf_efficientnetv2_s.in21k/18color_normal_classification",
-        "output_path" : "./sub-task2/output/tf_efficientnetv2_s.in21k/18color_normal_classification",
-        "log_path" : "./sub-task2/logging/18color_normal_classification",
+        "save_path" : "./sub-task2/ckpt/tf_efficientnetv2_m.in21k/centercrop_moreaug",
+        "output_path" : "./sub-task2/output/tf_efficientnetv2_m.in21k/centercrop_moreaug",
+        "log_path" : "./sub-task2/logging/centercrop_moreaug",
         "device" : "cuda",
         
         "binary_mode" : False,
         
-        "note" : "Cutmix 사용, FocalLoss 사용, Adam Optim 사용"
+        "note" : "Effiv2M 사용, more Aug, Bbox를 이용한 Center crop 사용, Cutmix 사용, FocalLoss 사용, Adam Optim 사용"
     }        
     
     if cfg["mode"] == "train" :

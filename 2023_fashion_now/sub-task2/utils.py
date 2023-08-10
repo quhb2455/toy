@@ -1,5 +1,5 @@
 from typing import Any
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
 from datetime import datetime
 from glob import glob
 from tqdm import tqdm
@@ -24,11 +24,23 @@ def get_loss_weight(data_path):
         num_data_samples.append(len(os.listdir(p)))
     return [1 - (x / sum(num_data_samples)) for x in num_data_samples]
 
-def score(true_labels, model_preds, threshold=None) :
+def score(true_labels, model_preds, mode=None) :
     model_preds = model_preds.argmax(1).detach().cpu().numpy().tolist()
     true_labels = true_labels.detach().cpu().numpy().tolist()
-    return f1_score(true_labels, model_preds, average='weighted')
-
+    if mode == None :
+        return f1_score(true_labels, model_preds, average='weighted')
+    else :
+        f1score = f1_score(true_labels, model_preds, average='weighted')
+        # cls_report = confusion_matrix(true_labels, model_preds)
+        return f1score, [true_labels, model_preds]
+    
+def cal_cls_report(true_labels, model_preds) :
+    rpt = classification_report(true_labels, model_preds, zero_division=0.0, output_dict=True)
+    del rpt['accuracy']
+    del rpt['macro avg']
+    del rpt['weighted avg']
+    return {str(k) : v['f1-score'] for k, v in rpt.items()}
+    
 def save_config(config, save_path, save_name="") :
     os.makedirs(save_path, exist_ok=True)
     cfg_save_time = datetime.now().strftime('%Y_%m_%d-%H_%M_%S')

@@ -144,10 +144,10 @@ if __name__ == "__main__" :
         "early_stop_patient" : 10,
         
         "reuse" : False, #True, #False
-        "weight_path" : "./sub-task2/ckpt/tf_efficientnetv2_s.in21k/18color_normal_classification/11E-val0.585818040998962-tf_efficientnetv2_s.in21k.pth",
+        "weight_path" : "./sub-task2/ckpt/tf_efficientnetv2_s.in21k/18color_centercrop_classification/7E-val0.5843784109409109-tf_efficientnetv2_s.in21k.pth",
         
-        "save_path" : "./sub-task2/ckpt/tf_efficientnetv2_s.in21k/18color_normal_classification",
-        "output_path" : "./sub-task2/output/tf_efficientnetv2_s.in21k/18color_normal_classification",
+        "save_path" : "./sub-task2/ckpt/tf_efficientnetv2_s.in21k/18color_centercrop_classification",
+        "output_path" : "./sub-task2/output/tf_efficientnetv2_s.in21k/18color_centercrop_classification",
         "log_path" : "./sub-task2/logging/18color_normal_classification",
         "device" : "cpu",
         

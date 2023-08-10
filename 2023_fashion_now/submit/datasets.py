@@ -115,10 +115,15 @@ class CustomDataset(Dataset):
 
     def __getitem__(self, index):
         img_path = self.imgs[index]
-        
+        p = self.bbox[index]
+
         # image = load_img(img_path)
         image = cv2.imread(img_path, cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
+        image = image[p[1]:p[3], p[0]:p[2], :]
+        h, w = image.shape[:2]
+        image = image[int(h*0.25):int(h*0.75), int(w*0.25):int(w*0.75), :]
         
         if self.transform :
             image = self.transform(image=image)['image']

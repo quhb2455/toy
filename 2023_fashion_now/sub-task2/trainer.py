@@ -1,4 +1,4 @@
-from utils import score, logging
+from utils import score, logging, cal_cls_report
 
 import torch
 import numpy as np
@@ -38,7 +38,7 @@ class Trainer() :
         train_acc, train_loss = [], []
         tqdm_train = tqdm(self.train_loader)
         for step, (img, label) in enumerate(tqdm_train) :
-            batch_res = self.train_on_batch(img, label, **cfg)
+            batch_res = self.train_on_batch(img, label, step, **cfg)
             
             train_acc.append(batch_res["acc"])
             train_loss.append(batch_res["loss"])
@@ -53,7 +53,7 @@ class Trainer() :
         self.logging(log, epoch)    
         self.scheduler_step()
         
-    def train_on_batch(self, img, label, **cfg) :
+    def train_on_batch(self, img, label, step, **cfg) :
         self.optimizer.zero_grad()
 
         img = img.to(cfg["device"])
@@ -75,36 +75,40 @@ class Trainer() :
     
     def valid_on_epoch(self, epoch, **cfg):
         self.model.eval()
-        valid_acc, valid_loss = [], []
+        valid_acc, valid_loss, valid_output = [], [], [[], []]
         tqdm_valid = tqdm(self.valid_loader)
         for step, (img, label) in enumerate(tqdm_valid) :
-            batch_res = self.valid_on_batch(img, label, **cfg)
+            batch_res = self.valid_on_batch(img, label, step, **cfg)
             
             valid_acc.append(batch_res["acc"])
             valid_loss.append(batch_res["loss"])
+            valid_output[0].extend(batch_res['labelAcc'][0])
+            valid_output[1].extend(batch_res['labelAcc'][1])
             log = {
                 "Epoch" : epoch,
                 "Validation Acc" : np.mean(valid_acc),
                 "Validation Loss" : np.mean(valid_loss),
             }
             tqdm_valid.set_postfix(log)
+            
+        self.logging({"LabelAcc" : cal_cls_report(valid_output[0], valid_output[1])}, epoch, mode='multi')
         self.logging(log, epoch)    
         return np.mean(valid_acc), np.mean(valid_loss)
     
-    def valid_on_batch(self, img, label, **cfg):
+    def valid_on_batch(self, img, label, step, **cfg):
         img = img.to(cfg["device"])
         label = label.to(cfg["device"])
         
         output = self.model(img)
         loss = self.criterion(output, label)
         
-        acc = score(label, output)
+        acc, cls_report = score(label, output, mode="valid")
         
         batch_metric = {
             "acc" : acc,
-            "loss" : loss.item()
+            "loss" : loss.item(),
+            "labelAcc" : cls_report
         }
-        
         return batch_metric
     
     def save_checkpoint(self, epoch, val_acc, **cfg) :
@@ -119,11 +123,14 @@ class Trainer() :
         else : 
             self.early_stop_cnt += 1
             
-    def logging(self, log_dict, step) :
+    def logging(self, log_dict, step, mode='single') :
         for k, v in log_dict.items():
             if k == "Epoch" : continue
-            self.log.add_scalar(k, v, step)
-            
+            if mode == 'multi' :
+                self.log.add_scalars(k, v, step)
+            else :
+                self.log.add_scalar(k, v, step)
+
     def scheduler_step(self) :
         try :
             self.scheduler.step()
