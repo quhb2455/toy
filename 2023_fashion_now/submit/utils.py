@@ -6,6 +6,7 @@ from tqdm import tqdm
 import os
 import json
 import cv2
+import random
 import numpy as np
 import torch
 import albumentations as A
@@ -18,6 +19,12 @@ from torch.nn import functional as F
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
+def set_seed(seed) :
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    
 def get_loss_weight(data_path):
     num_data_samples = []
     for p in sorted(glob(os.path.join(data_path, "*"))) :

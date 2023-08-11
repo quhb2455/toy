@@ -3,7 +3,7 @@ from predictor import Predictor
 from datasets import DatasetCreater
 from models import BaseModel
 from loss_fn import FocalLoss, AsymmetricLoss, AsymmetricLossSingleLabel
-from utils import save_config, mixup, cutmix, score, get_loss_weight
+from utils import save_config, mixup, cutmix, score, get_loss_weight, set_seed
 
 import torch
 import torch.nn as nn
@@ -105,7 +105,8 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
                             distort_limit=5, shift_limit=1),    
                 ], p=1),
                 
-                A.Normalize(),
+                A.Normalize(mean=(0.548172032,0.467046563,0.434142448),
+                            std=(0.12784231,0.122905336,0.119736256)),
                 ToTensorV2()
             ])
         elif _mode == 'valid' :
@@ -114,13 +115,15 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
                 # A.Emboss(p=1),
                 # A.Sharpen(p=1), 
                 # A.FancyPCA(p=1),
-                A.Normalize(),
+                A.Normalize(mean=(0.548172032,0.467046563,0.434142448),
+                            std=(0.12784231,0.122905336,0.119736256)),
                 ToTensorV2()
             ])
         elif _mode == 'infer' : 
             return A.Compose([
                 A.Resize(resize, resize),
-                A.Normalize(),
+                A.Normalize(mean=(0.548172032,0.467046563,0.434142448),
+                            std=(0.12784231,0.122905336,0.119736256)),
                 ToTensorV2()
             ])
 
@@ -130,8 +133,8 @@ if __name__ == "__main__" :
     cfg = {
         "mode" : "train", #train, #infer
         
-        "model_name" : "tf_efficientnetv2_m.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
-        #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",#"beit_base_patch16_224.in22k_ft_in22k",
+        "model_name" : "convnextv2_base.fcmae_ft_in1k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
+        #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",#"beit_base_patch16_224.in22k_ft_in22k", #"convnextv2_base.fcmae_ft_in1k"
         "num_classes" : 18,
         
         "learning_rate" : 1e-4,
@@ -140,7 +143,7 @@ if __name__ == "__main__" :
         "resize" : 224,
         
         "data_train_path" : "./sub-task2/Dataset/Train",
-        "data_train_csv_path" : "./sub-task2/Dataset/info_etri20_color_train.csv",
+        "data_train_csv_path" : "./sub-task2/Dataset/aug_info_etri20_color_train.csv",
         "data_valid_path" : "./sub-task2/Dataset/Validation",
         "data_valid_csv_path" : "./sub-task2/Dataset/info_etri20_color_validation.csv",
         
@@ -155,16 +158,16 @@ if __name__ == "__main__" :
         "early_stop_patient" : 10,
         
         "reuse" : False, #True, #False
-        "weight_path" : "./sub-task2/ckpt/tf_efficientnetv2_m.in21k/centercrop_moreaug/7E-val0.5843784109409109-tf_efficientnetv2_s.in21k.pth",
+        "weight_path" : "./sub-task2/ckpt/convnextv2_base.fcmae_ft_in1k/OfflineAug_meadstdNorm/",
         
-        "save_path" : "./sub-task2/ckpt/tf_efficientnetv2_m.in21k/centercrop_moreaug",
-        "output_path" : "./sub-task2/output/tf_efficientnetv2_m.in21k/centercrop_moreaug",
-        "log_path" : "./sub-task2/logging/centercrop_moreaug",
+        "save_path" : "./sub-task2/ckpt/convnextv2_base.fcmae_ft_in1k/OfflineAug_meadstdNorm",
+        "output_path" : "./sub-task2/output/convnextv2_base.fcmae_ft_in1k/OfflineAug_meadstdNorm",
+        "log_path" : "./sub-task2/logging/OfflineAug_meadstdNorm",
         "device" : "cuda",
         
         "binary_mode" : False,
-        
-        "note" : "Effiv2M 사용, more Aug, Bbox를 이용한 Center crop 사용, Cutmix 사용, FocalLoss 사용, Adam Optim 사용"
+        "seed": 2455,
+        "note" : "Label1,2,8,9에 Offline Aug 사용, Offline Aug 데이터는 CenterCrop 사용하지 않음,Effiv2M 사용, more Aug, Bbox를 이용한 Center crop 사용, Cutmix 사용, FocalLoss 사용, Adam Optim 사용"
     }        
     
     if cfg["mode"] == "train" :
@@ -172,6 +175,7 @@ if __name__ == "__main__" :
     elif cfg["mode"] == "infer" :
         cfg["shuffle"] = False
     
+    set_seed(cfg["seed"])
     save_config(cfg, cfg["save_path"], save_name=cfg["mode"]+"_config")
     
     base_main = BaseMain(**cfg)
