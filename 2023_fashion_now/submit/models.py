@@ -4,7 +4,7 @@ import timm
 
 class DivBaseModel(nn.Module) :
     def __init__(self, **cfg) -> None:
-        super(BaseModel, self).__init__()
+        super(DivBaseModel, self).__init__()
         self.model = timm.create_model(model_name=cfg["model_name"], 
                                        num_classes=cfg["num_classes"], 
                                        pretrained=True)

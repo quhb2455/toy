@@ -1,8 +1,8 @@
 from trainer import Trainer
 from predictor import Predictor
 from datasets import DatasetCreater
-from models import BaseModel
-from loss_fn import FocalLoss, AsymmetricLoss, AsymmetricLossSingleLabel
+from models import BaseModel, DivBaseModel
+from loss_fn import FocalLoss, TripletMargingLoss
 from utils import save_config, mixup, cutmix, score, get_loss_weight
 
 import torch
@@ -21,9 +21,13 @@ from tqdm import tqdm
 class BaseMain(Trainer, Predictor, DatasetCreater) :
     def __init__(self, **cfg) -> None:
         super().__init__()
-        self.model = BaseModel(**cfg).to(cfg["device"])
+        # self.model = BaseModel(**cfg).to(cfg["device"])
+        self.model = DivBaseModel(**cfg).to(cfg["device"])
         self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
-        self.criterion = FocalLoss(alpha=cfg["focal_alpha"],gamma=cfg["focal_gamma"]).to(cfg["device"])
+        # self.criterion = FocalLoss(alpha=cfg["focal_alpha"],gamma=cfg["focal_gamma"]).to(cfg["device"])
+        # self.criterion = FocalLoss(alpha=cfg["focal_alpha"],gamma=cfg["focal_gamma"]).to(cfg["device"])
+        self.criterion = nn.CrossEntropyLoss().to(cfg["device"])
+        self.metric_criterion = TripletMargingLoss().to(cfg["device"])
         # self.scheduler = CosineAnnealingLR(self.optimizer, T_max=60, eta_min=5e-4)
         
         if cfg["mode"] == 'train' :
