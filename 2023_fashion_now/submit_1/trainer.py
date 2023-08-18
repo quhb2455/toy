@@ -29,11 +29,8 @@ class Trainer() :
     
     def train_weight_load(self, weight_path) :
         checkpoint = torch.load(weight_path)
-        self.model.load_state_dict(checkpoint['model_state_dict'])  
-        self.d_head.load_state_dict(checkpoint['d_head_state_dict'])
-        self.g_head.load_state_dict(checkpoint['g_head_state_dict'])
-        self.e_head.load_state_dict(checkpoint['e_head_state_dict'])      
-        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        self.model.load_state_dict(checkpoint['model_state_dict'])        
+        # self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         return checkpoint['epoch'] + 1
         
     def train_on_epoch(self, epoch, **cfg):
@@ -120,9 +117,6 @@ class Trainer() :
             torch.save({
                 "epoch": epoch,
                 "model_state_dict": self.model.state_dict(),
-                "d_head_state_dict": self.d_head.state_dict(),
-                "g_head_state_dict": self.g_head.state_dict(),
-                "e_head_state_dict": self.e_head.state_dict(),
                 "optimizer_state_dict": self.optimizer.state_dict()
             }, os.path.join(cfg["save_path"], str(epoch) + 'E-val' + str(self.best_score) + '-' + cfg["model_name"] + '.pth'))
             self.early_stop_cnt = 0 

@@ -15,7 +15,10 @@ class Predictor() :
         
     def prediction(self, **cfg) :
         self.pred_weight_load(cfg["weight_path"],cfg["device"])
-        self.model.eval()        
+        self.model.eval()
+        self.d_head.eval()
+        self.g_head.eval()
+        self.e_head.eval()        
         d_model_preds, g_model_preds, e_model_preds = [], [], []
         with torch.no_grad() :
             for img in tqdm(self.test_loader) :
@@ -31,7 +34,12 @@ class Predictor() :
     def predict_on_batch(self, img, **cfg) :
         img = img.to(cfg["device"])
         # return self.model(img).argmax(1).detach().cpu().numpy().tolist()
-        d_output, g_output, e_output = self.model(img)
+        # d_output, g_output, e_output = self.model(img)
+        emb, _ = self.model(img, div=True)
+        d_output = self.d_head(emb)
+        g_output = self.g_head(emb)
+        e_output = self.e_head(emb)
+        
         d_output = d_output.argmax(1).detach().cpu().numpy().tolist()
         g_output = g_output.argmax(1).detach().cpu().numpy().tolist()
         e_output = e_output.argmax(1).detach().cpu().numpy().tolist()
@@ -63,6 +71,9 @@ class Predictor() :
         if device == "cpu" :
             checkpoint = torch.load(weight_path, map_location=torch.device('cpu'))
         self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.d_head.load_state_dict(checkpoint['d_head_state_dict'])
+        self.g_head.load_state_dict(checkpoint['g_head_state_dict'])
+        self.e_head.load_state_dict(checkpoint['e_head_state_dict'])
     
     # def pred_weight_load(self, weight_path) :
     #     checkpoint = torch.load(weight_path)

@@ -131,10 +131,8 @@ class TripletMargingLoss(nn.Module) :
         self.miner = miners.MultiSimilarityMiner()
         
     def forward(self, emb, label) :
-        hard_pair1 = self.miner(emb, label[0])
-        hard_pair2 = self.miner(emb, label[1])
-        hard_pair3 = self.miner(emb, label[2])
-        return self.loss_func(emb, label[0], hard_pair1) + self.loss_func(emb, label[1], hard_pair2) + self.loss_func(emb, label[2], hard_pair3)
+        hard_pair = self.miner(emb, label)
+        return self.loss_func(emb, label, hard_pair)
         
 
     

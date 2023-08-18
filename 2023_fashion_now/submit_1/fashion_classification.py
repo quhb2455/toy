@@ -30,8 +30,7 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         self.g_head = FullyConnectedLayer(in_dim, 64, 5).to(cfg["device"])
         self.e_head = FullyConnectedLayer(in_dim, 64, 3).to(cfg["device"])
         
-        # self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
-        self.optimizer = Adam([
+        self.optimizer = AdamW([
             {"params":self.model.parameters()},
             {"params" : self.d_head.parameters()},
             {"params" : self.g_head.parameters()},
@@ -61,31 +60,26 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
 
         # img, lam, label_a, label_b = MultiHead_cutmix(img, label)
         # img, lam, label_a, label_b = cutmix(img, label)
-        # img, lam, label_a, label_b = MultiHead_mixup(img, label)
+        img, lam, label_a, label_b = MultiHead_mixup(img, label)
         # img, lam, label_a, label_b = mixup(img, label)
 
-        # label_daily_b = label_b[0].to(cfg["device"])
-        # label_gender_b = label_b[1].to(cfg["device"])
-        # label_embel_b = label_b[2].to(cfg["device"])
+        label_daily_b = label_b[0].to(cfg["device"])
+        label_gender_b = label_b[1].to(cfg["device"])
+        label_embel_b = label_b[2].to(cfg["device"])
         
-        # d_output, g_output, e_output = self.model(img)
-        emb, _ = self.model(img, div=True)
-        d_output = self.d_head(emb)
-        g_output = self.g_head(emb)
-        e_output = self.e_head(emb)
-        
+        d_output, g_output, e_output = self.model(img)
         # loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)#+ self.metric_criterion(emb, label)
-        # daily_loss = lam * self.criterion(d_output, label_daily) + (1 - lam) * self.criterion(d_output, label_daily_b)
-        # gender_loss = lam * self.criterion(g_output, label_gender) + (1 - lam) * self.criterion(g_output, label_gender_b)
-        # embel_loss = lam * self.criterion(e_output, label_embel) + (1 - lam) * self.criterion(e_output, label_embel_b)
-        metric_loss = self.metric_criterion(emb, [label_daily, label_gender, label_embel])
+        daily_loss = lam * self.criterion(d_output, label_daily) + (1 - lam) * self.criterion(d_output, label_daily_b)
+        gender_loss = lam * self.criterion(g_output, label_gender) + (1 - lam) * self.criterion(g_output, label_gender_b)
+        embel_loss = lam * self.criterion(e_output, label_embel) + (1 - lam) * self.criterion(e_output, label_embel_b)
+        # metric_loss = self.metric_criterion(emb, label)
         
-        daily_loss = self.criterion(d_output, label_daily) 
-        gender_loss = self.criterion(g_output, label_gender)
-        embel_loss = self.criterion(e_output, label_embel)
+        # daily_loss = self.criterion(d_output, label_daily) 
+        # gender_loss = self.criterion(g_output, label_gender)
+        # embel_loss = self.criterion(e_output, label_embel)
         
         # loss = self.criterion(output, label.type(torch.float32))
-        loss = daily_loss + gender_loss + embel_loss + metric_loss
+        loss = daily_loss + gender_loss + embel_loss
         loss.backward()
         self.optimizer.step()
         
@@ -112,9 +106,6 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
     
     def train_on_epoch(self, epoch, **cfg):
         self.model.train()
-        self.d_head.train()
-        self.g_head.train()
-        self.e_head.train()
         train_acc, train_loss = [], []
         train_d_loss, train_g_loss, train_e_loss = [], [], []
         train_d_acc, train_g_acc, train_e_acc = [], [], []
@@ -165,11 +156,7 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         else :        
             # output = self.model(img)
             # loss = self.criterion(output, label)
-            # d_output, g_output, e_output = self.model(img)
-            emb, _ = self.model(img, div=True)
-            d_output = self.d_head(emb)
-            g_output = self.g_head(emb)
-            e_output = self.e_head(emb)
+            d_output, g_output, e_output = self.model(img)
             
             daily_loss = self.criterion(d_output, label_daily)
             gender_loss = self.criterion(g_output, label_gender)
@@ -200,9 +187,6 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
     
     def valid_on_epoch(self, epoch, **cfg):
         self.model.eval()
-        self.d_head.eval()
-        self.g_head.eval()
-        self.e_head.eval()
         valid_acc, valid_loss, valid_output = [], [], [[], []]
         valid_d_loss, valid_g_loss, valid_e_loss = [], [], []
         valid_d_acc, valid_g_acc, valid_e_acc = [], [], []
@@ -249,37 +233,26 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
                 A.OneOf([
                     A.RandomBrightness((-0.2, 0.2), p=1),
                     A.RandomToneCurve(scale=0.5, p=1),    
-                    A.ChannelShuffle(p=1),
-                    A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.3, hue=0.2, p=1) ,
-                ], p=0.5),
-                
-                A.OneOf([
-                    A.Emboss(alpha=(0.5, 0.7), strength=(0.5, 0.7), p=1),
-                    A.Sharpen(alpha=(0.5, 0.7), lightness=(0.7, 1), p=1),
-                ], p=0.2),
+                ], p=0.3),
                 
                 A.CoarseDropout(min_holes=10, max_holes=20, max_height=20, min_height=20 ,p=0.4),
-                A.GlassBlur(sigma=1, max_delta=2,p=0.2),
-                
-                # A.OneOf([
-                #     A.GlassBlur(sigma=1, max_delta=2,p=1),
-                #     A.RandomGridShuffle(grid=(2,2), p=1)
-                # ], p =0.3),
-                
-                # A.OneOf([
-                #     A.Affine(rotate=(-180, 180), fit_output=False, mask_interpolation=1, mode=3),
-                #     # A.OpticalDistortion(border_mode=1,
-                #     #         distort_limit=1, shift_limit=1),    
-                #     A.ElasticTransform(p=1, alpha=10, sigma=10 * 0.25, alpha_affine=10 * 0.25),
-                #     A.GridDistortion(p=1)
-                # ], p=0.3),
+                A.OneOf([
+                    A.GlassBlur(sigma=1, max_delta=2,p=1),
+                    A.RandomGridShuffle(grid=(2,2), p=1)
+                ], p =0.3),
+                A.OneOf([
+                    A.Affine(rotate=(-180, 180), fit_output=False, mask_interpolation=1, mode=3),
+                    # A.OpticalDistortion(border_mode=1,
+                    #         distort_limit=1, shift_limit=1),    
+                    A.ElasticTransform(p=1, alpha=10, sigma=10 * 0.25, alpha_affine=10 * 0.25),
+                    A.GridDistortion(p=1)
+                ], p=0.3),
                 
                 A.OneOf([
                     A.RandomRain(slant_lower=-10, slant_upper=10,  brightness_coefficient=1, drop_color=(10, 10, 10), p=1),
                     A.RandomSnow(snow_point_lower= 0.05, snow_point_upper= 0.3, brightness_coeff= 3.5, p=1),
                     A.RandomSunFlare(src_radius=25, p=1),
                 ], p=0.3),
-                
                 A.Normalize(),
                 # A.Normalize(mean=(0.548172032,0.467046563,0.434142448),
                 #             std=(0.12784231,0.122905336,0.119736256)),
@@ -309,7 +282,7 @@ if __name__ == "__main__" :
     cfg = {
         "mode" : "train", #train, #infer
         
-        "model_name" : "resnetv2_101x1_bit.goog_in21k_ft_in1k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
+        "model_name" : "tf_efficientnetv2_m.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
         #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",#"beit_base_patch16_224.in22k_ft_in22k", #"convnextv2_base.fcmae_ft_in1k"
         "num_classes" : 86,
         # daily - 6
@@ -326,10 +299,10 @@ if __name__ == "__main__" :
         "data_valid_path" : "./sub-task1/Dataset/Validation",
         "data_valid_csv_path" : "./sub-task1/Dataset/info_etri20_emotion_validation.csv",
         
-        # "data_infer_path" : "/aif/Dataset/Test/",
-        # "data_infer_csv_path" : "/aif/Dataset/info_etri20_color_test.csv",
-        "data_infer_path" : "./sub-task1/Dataset/Test_sample",
-        "data_infer_csv_path" : "./sub-task1/Dataset/info_etri20_emotion_test_sample.csv",
+        "data_infer_path" : "/aif/Dataset/Test/",
+        "data_infer_csv_path" : "/aif/Dataset/info_etri20_color_test.csv",
+        # "data_infer_path" : "./sub-task2/Dataset/Test_sample",
+        # "data_infer_csv_path" : "./sub-task2/Dataset/info_etri20_color_test_sample.csv",
         
         "epochs" : 80,
         "batch_size" : 32,
@@ -337,16 +310,16 @@ if __name__ == "__main__" :
         "early_stop_patient" : 10,
         
         "reuse" : False, #True, #False
-        "weight_path" : "./sub-task1/ckpt/resnetv2_101x1_bit.goog_in21k_ft_in1k/multi_head_SeperateOptim_PixelAug_LowLR_Metric2/7E-val0.6858378073151257-tf_efficientnetv2_m.in21k.pth",
+        "weight_path" : "./sub-task1/ckpt/tf_efficientnetv2_l.in21k/multi_head_MoreAug/6E-val0.18936908293169813-tf_efficientnetv2_m.in21k.pth",
         
-        "save_path" : "./sub-task1/ckpt/resnetv2_101x1_bit.goog_in21k_ft_in1k/multi_head_SeperateOptim_PixelAug_LowLR_Metric2",
-        "output_path" : "./sub-task1/output/resnetv2_101x1_bit.goog_in21k_ft_in1k/multi_head_SeperateOptim_PixelAug_LowLR_Metric2",
-        "log_path" : "./sub-task1/logging/multi_head_SeperateOptim_PixelAug_LowLR_Metric2",
+        "save_path" : "./sub-task1/ckpt/",
+        "output_path" : "./sub-task1/output/",
+        "log_path" : "./sub-task1/logging/",
         "device" : "cuda",
         
         "binary_mode" : False,
         "seed": 2455,
-        "note" : ["metric learning backbone","lr 5e-4 -> 1e-4", "seperate optim backbone, d_head, g_head, e_head", "delete Spatial Aug, Add Pixel Aug", "multi_head 학습", "MixUp O", "CE Loss", "Adam Optim"]
+        "note" : ["??"]
     }        
     
     if cfg["mode"] == "train" :
@@ -362,6 +335,6 @@ if __name__ == "__main__" :
     if cfg["mode"] == "train" :
         base_main.train(**cfg)
     elif cfg["mode"] == "infer" :
-        df = base_main.infer(**cfg)
+        base_main.infer(**cfg)
     
     
