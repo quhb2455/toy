@@ -30,7 +30,7 @@ class Trainer() :
     def train_weight_load(self, weight_path) :
         checkpoint = torch.load(weight_path)
         self.model.load_state_dict(checkpoint['model_state_dict'])        
-        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        # self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         return checkpoint['epoch'] + 1
         
     def train_on_epoch(self, epoch, **cfg):

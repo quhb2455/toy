@@ -1,5 +1,8 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from pytorch_metric_learning import miners, losses
+
 
 class FocalLoss(nn.Module) :
     def __init__(self, alpha=2, gamma=2, logits=False, reduction='none') :
@@ -121,3 +124,13 @@ class AsymmetricLossSingleLabel(nn.Module):
             loss = loss.mean()
 
         return loss
+    
+class TripletMargingLoss(nn.Module) :
+    def __init__(self) :
+        super(TripletMargingLoss, self).__init__()
+        self.loss_func = losses.TripletMarginLoss()
+        self.miner = miners.MultiSimilarityMiner()
+        
+    def forward(self, emb, label) :
+        hard_pair = self.miner(emb, label)
+        return self.loss_func(emb, label, hard_pair)

@@ -4,10 +4,10 @@ import timm
 
 class DivBaseModel(nn.Module) :
     def __init__(self, **cfg) -> None:
-        super(BaseModel, self).__init__()
+        super(DivBaseModel, self).__init__()
         self.model = timm.create_model(model_name=cfg["model_name"], 
                                        num_classes=cfg["num_classes"], 
-                                       pretrained=True)
+                                       pretrained=False)
         self.flatten = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(1)
@@ -27,7 +27,7 @@ class BaseModel(nn.Module) :
         super(BaseModel, self).__init__()
         self.model = timm.create_model(model_name=cfg["model_name"], 
                                        num_classes=cfg["num_classes"], 
-                                       pretrained=True)
+                                       pretrained=False)#True)
         
     def forward(self, x) :
         return self.model(x)
@@ -69,16 +69,16 @@ class FullyConnectedLayer(nn.Module) :
     def forward(self, x) :
         return self.layers(x)
         
-class ClassifierHead_1(nn.Module) :
+class ClassifierHead(nn.Module) :
     def __init__(self, **cfg) -> None:
-        super(ClassifierHead_1, self).__init__()
+        super(ClassifierHead, self).__init__()
         
         self.head = FullyConnectedLayer(
-            base_dim=cfg["base_dim"], 
-            mid_dim=cfg["mid_dim"], 
-            num_classes=4)
+            base_dim=3, 
+            mid_dim=64, 
+            num_classes=18)
     
-    def forward(self, x, mask):
+    def forward(self, x):
         x = self.head(x)
         # x.masked_fill_(mask, -10000.)
         return x 

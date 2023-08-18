@@ -1,5 +1,6 @@
 from typing import Any
 from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
+from scipy.spatial import distance
 from datetime import datetime
 from glob import glob
 from tqdm import tqdm
@@ -15,6 +16,7 @@ from albumentations.pytorch import ToTensorV2
 # CAM
 from torch.autograd import Variable
 from torch.nn import functional as F
+from torch.nn.modules.batchnorm import _BatchNorm
 
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -40,7 +42,20 @@ def score(true_labels, model_preds, mode=None) :
         f1score = f1_score(true_labels, model_preds, average='weighted')
         # cls_report = confusion_matrix(true_labels, model_preds)
         return f1score, [true_labels, model_preds]
-    
+ 
+def distance_score(model_preds, mean_labels, true_labels, mode=None):
+    preds = model_preds.detach().cpu().numpy().tolist()
+    # mean_labels = mean_labels.detach().cpu().numpy().tolist()
+    true_labels = true_labels.numpy().tolist()
+    dist_label_list = []
+    for p in preds :
+        dist_label_list.append(np.argmin([distance.euclidean(p, m) for m in mean_labels]))
+    if mode == None :
+        return f1_score(true_labels, dist_label_list, average='weighted')
+    else :
+        f1score = f1_score(true_labels, dist_label_list, average='weighted')
+        return f1score, [true_labels, dist_label_list]
+ 
 def cal_cls_report(true_labels, model_preds) :
     rpt = classification_report(true_labels, model_preds, zero_division=0.0, output_dict=True)
     del rpt['accuracy']
@@ -193,5 +208,19 @@ def logging(path):
     logger = SummaryWriter(path)
     return logger
 
-        
-        
+    
+
+def disable_running_stats(model):
+    def _disable(module):
+        if isinstance(module, _BatchNorm):
+            module.backup_momentum = module.momentum
+            module.momentum = 0
+
+    model.apply(_disable)
+
+def enable_running_stats(model):
+    def _enable(module):
+        if isinstance(module, _BatchNorm) and hasattr(module, "backup_momentum"):
+            module.momentum = module.backup_momentum
+
+    model.apply(_enable)

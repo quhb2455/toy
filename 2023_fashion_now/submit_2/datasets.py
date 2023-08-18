@@ -122,8 +122,8 @@ class CustomDataset(Dataset):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
         image = image[p[1]:p[3], p[0]:p[2], :]
-        h, w = image.shape[:2]
-        image = image[int(h*0.25):int(h*0.75), int(w*0.25):int(w*0.75), :]
+        # h, w = image.shape[:2]
+        # image = image[int(h*0.25):int(h*0.75), int(w*0.25):int(w*0.75), :]
         
         if self.transform :
             image = self.transform(image=image)['image']
