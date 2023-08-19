@@ -24,12 +24,12 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         super().__init__()
         # self.model = BaseModel(**cfg).to(cfg["device"])
         self.model = DivBaseModel(**cfg).to(cfg["device"])
-        # self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
-        self.optimizer = SAM(self.model.parameters(), SGD, weight_decay=0.0001, momentum=0.9,lr=cfg["learning_rate"])
+        self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
+        # self.optimizer = SAM(self.model.parameters(), SGD, weight_decay=0.0001, momentum=0.9,lr=cfg["learning_rate"])
         # self.criterion = FocalLoss(alpha=cfg["focal_alpha"],gamma=cfg["focal_gamma"]).to(cfg["device"])
-        self.criterion = nn.CrossEntropyLoss(label_smoothing=0.1).to(cfg["device"])
+        self.criterion = nn.CrossEntropyLoss().to(cfg["device"])
         self.metric_criterion = TripletMargingLoss().to(cfg["device"])
-        self.scheduler = CosineAnnealingLR(self.optimizer.base_optimizer, T_max=cfg['epochs'], eta_min=0.008)
+        # self.scheduler = CosineAnnealingLR(self.optimizer.base_optimizer, T_max=cfg['epochs'], eta_min=0.008)
         
         if cfg["mode"] == 'train' :
             self.train_loader, self.valid_loader = self.create_dataloader([self.get_transform('train', **cfg), 
@@ -47,23 +47,15 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         img = img.to(cfg["device"])
         label = label.to(cfg["device"])
 
-        img, lam, label_a, label_b = cutmix(img, label)
+        img, lam, label_a, label_b = cutmix(img, label) 
         
-        #### SAM optim first step
-        enable_running_stats(self.model)
         emb, output = self.model(img, div=True)
         loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b) + lam * self.metric_criterion(emb, label_a) + (1 - lam) * self.metric_criterion(emb, label_b)
         
         # loss = self.criterion(output, label.type(torch.float32))
         loss.backward()
-        # self.optimizer.step()
-        self.optimizer.first_step(zero_grad=True)
+        self.optimizer.step()
         
-        #### SAM optim second step
-        disable_running_stats(self.model)
-        emb, output = self.model(img, div=True)
-        (lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b) + lam * self.metric_criterion(emb, label_a) + (1 - lam) * self.metric_criterion(emb, label_b)).backward()
-        self.optimizer.second_step(zero_grad=True)
         # acc = score(mixup_label, output)
         acc = score(label, output)
         # acc = score(torch.argmax(label, dim=1), output)
@@ -149,13 +141,13 @@ if __name__ == "__main__" :
     cfg = {
         "mode" : "train", #train, #infer
         
-        "model_name" : "tf_efficientnetv2_s.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
+        "model_name" : "resnetv2_101x1_bit", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
         # "tf_efficientnet_b4", #"resnetv2_101x1_bit", #"resnetv2_152x2_bit",
         #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",
         #"beit_base_patch16_224.in22k_ft_in22k", #"convnextv2_base.fcmae_ft_in1k"
         "num_classes" : 18,
         
-        "learning_rate" : 0.1,#5e-4,
+        "learning_rate" : 5e-4,
         "focal_alpha" : 2,
         "focal_gamma" : 2,
         "resize" : 224,
@@ -176,19 +168,19 @@ if __name__ == "__main__" :
         "early_stop_patient" : 10,
         
         "reuse" : False, #True, #False
-        "weight_path" : "./sub-task2/ckpt/tf_efficientnetv2_s.in21k/lowSpatialAugPercent/6E-val0.18936908293169813-tf_efficientnetv2_m.in21k.pth",
+        "weight_path" : "./sub-task2/ckpt/resnetv2_101x1_bit/Sampling_lowSpatialAugPercent/12E-val0.5823576946932211-resnetv2_152d.pth",
         
-        "save_path" : "./sub-task2/ckpt/tf_efficientnetv2_s.in21k/Sampling_lowSpatialAugPercent_SAM",
-        "output_path" : "./sub-task2/output/tf_efficientnetv2_s.in21k/Sampling_lowSpatialAugPercent_SAM",
-        "log_path" : "./sub-task2/logging/Sampling_lowSpatialAugPercent_SAM",
+        "save_path" : "./sub-task2/ckpt/resnetv2_101x1_bit/Sampling_lowSpatialAugPercent",
+        "output_path" : "./sub-task2/output/resnetv2_101x1_bit/Sampling_lowSpatialAugPercent",
+        "log_path" : "./sub-task2/logging/Sampling_lowSpatialAugPercent",
         "device" : "cuda",
         
         "binary_mode" : False,
         "seed": 2455,
-        "note" : ["spatial aug percent 1 -> 0.3", "Metric Learning label_b 도 이용", "Label1,2,8,9에 Offline Aug 사용", 
+        "note" : ["Low Distance Sampling", "spatial aug percent 1 -> 0.3", "Metric Learning label_b 도 이용", "Label1,2,8,9에 Offline Aug 사용", 
                 "CenterCrop 사용하지 않음", 
                 "Aug 정도 하향조정", 
-                "Cutmix 사용", "CE Loss 사용", "SAM Optim 사용"]
+                "Cutmix 사용", "CE Loss 사용", "Adam Optim 사용"]
     }        
     
     if cfg["mode"] == "train" :
