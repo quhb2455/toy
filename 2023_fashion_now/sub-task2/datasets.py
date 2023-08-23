@@ -138,8 +138,13 @@ class CustomDataset(Dataset):
             else :
                 # label = self.label_enc[self.labels[index]]
                 label = self.labels[index]
-                
-            return image, label
+                # if label >= 10 : ## upper
+                #     upper_label = label % 10
+                #     lower_label = -1 ## ignore_index
+                # else : ## lower
+                #     upper_label = -1 ## ignore_index
+                #     lower_label = label
+            return image, label #, [upper_label, lower_label]
 
         else:
             return image

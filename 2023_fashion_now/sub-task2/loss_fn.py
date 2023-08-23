@@ -27,6 +27,8 @@ class BCELoss(nn.Module) :
         super(BCELoss, self).__init__()
         self.loss = nn.BCEWithLogitsLoss(weight=weight, size_average=size_average,
                                          reduce=reduce, reduction=reduction, pos_weight=pos_weight)
+        # self.loss = nn.BCELoss(weight=weight, size_average=size_average,
+        #                                  reduce=reduce, reduction=reduction, pos_weight=pos_weight)
 
     def forward(self, inputs, targets) :
         targets = torch.Tensor([targets.detach().cpu().numpy().tolist()] * inputs.shape[0]).cuda()
@@ -134,3 +136,16 @@ class TripletMargingLoss(nn.Module) :
     def forward(self, emb, label) :
         hard_pair = self.miner(emb, label)
         return self.loss_func(emb, label, hard_pair)
+
+
+class RGBDistanceCELoss(nn.Module) :
+    def __init__(self, device) :
+        super(RGBDistanceCELoss, self).__init__()
+        self.cosine_dist = nn.CosineSimilarity()
+        self.ce_loss = nn.CrossEntropyLoss(reduction='mean')
+        # self.color_mean = color_mean
+        self.device = device
+        
+    def forward(self, color_dist, label) :
+        # color_dist = torch.stack([self.cosine_dist(output, self.color_mean[i]) for i in range(18)], dim= 1)#.to(self.device)
+        return self.ce_loss(color_dist, label)#, color_dist

@@ -31,7 +31,8 @@ def get_loss_weight(data_path):
     num_data_samples = []
     for p in sorted(glob(os.path.join(data_path, "*"))) :
         num_data_samples.append(len(os.listdir(p)))
-    return [1 - (x / sum(num_data_samples)) for x in num_data_samples]
+    # return [1 - (x / sum(num_data_samples)) for x in num_data_samples]
+    return [sum(num_data_samples) / (x * len(glob(os.path.join(data_path, "*")))) for x in num_data_samples]
 
 def score(true_labels, model_preds, mode=None) :
     model_preds = model_preds.argmax(1).detach().cpu().numpy().tolist()
@@ -115,6 +116,22 @@ def cutmix(imgs, labels):
     lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (imgs.size()[-1] * imgs.size()[-2]))
 
     return imgs, lam, target_a, target_b
+
+def Multi_cutmix(imgs, labels, upper, lower) :
+    lam = np.random.beta(1.0, 1.0)
+    rand_index = torch.randperm(imgs.size()[0]).cuda()
+    target_a = labels
+    target_b = labels[rand_index]
+    upper_a = upper
+    upper_b = upper[rand_index]
+    lower_a = lower
+    lower_b = lower[rand_index]
+    bbx1, bby1, bbx2, bby2 = rand_bbox(imgs.size(), lam)
+    imgs[:, :, bbx1:bbx2, bby1:bby2] = imgs[rand_index, :, bbx1:bbx2, bby1:bby2]
+
+    lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (imgs.size()[-1] * imgs.size()[-2]))
+
+    return imgs, lam, target_a, target_b, upper_a, upper_b, lower_a, lower_b
 
 def mixup(imgs, labels):
     lam = np.random.beta(1.0, 1.0)
@@ -207,8 +224,6 @@ def logging(path):
     os.makedirs(path, exist_ok=True)
     logger = SummaryWriter(path)
     return logger
-
-    
 
 def disable_running_stats(model):
     def _disable(module):

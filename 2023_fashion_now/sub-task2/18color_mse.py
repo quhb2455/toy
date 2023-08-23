@@ -1,8 +1,8 @@
 from trainer import Trainer
 from predictor import Predictor
 from datasets import DatasetCreater
-from models import BaseModel, DivBaseModel, ClassifierHead
-from loss_fn import FocalLoss, TripletMargingLoss
+from models import BaseModel, DivBaseModel
+from loss_fn import FocalLoss, TripletMargingLoss, RGBDistanceCELoss
 from utils import save_config, mixup, cutmix, score, get_loss_weight, set_seed, distance_score
 
 import torch
@@ -23,17 +23,20 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         super().__init__()
         # self.model = BaseModel(**cfg).to(cfg["device"])
         self.model = DivBaseModel(**cfg).to(cfg["device"])
-        self.cls_head = ClassifierHead(**cfg).to(cfg["device"])
-        # self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
-        self.optimizer = Adam(
-            [{'params': self.model.parameters()},
-            {'params': self.cls_head.parameters()}], lr=cfg["learning_rate"])
+        # self.cls_head = ClassifierHead(**cfg).to(cfg["device"])
+        self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
+        # self.optimizer = Adam(
+        #     [{'params': self.model.parameters()},
+        #     {'params': self.cls_head.parameters()}], lr=cfg["learning_rate"])
         # self.criterion = FocalLoss(alpha=cfg["focal_alpha"],gamma=cfg["focal_gamma"]).to(cfg["device"])
-        self.cls_criterion = nn.CrossEntropyLoss().to(cfg["device"])
-        self.criterion = nn.MSELoss().to(cfg['device'])
+        self.criterion = nn.CrossEntropyLoss().to(cfg["device"])
+        # self.criterion = RGBDistanceCELoss(color_mean=torch.tensor(cfg['mean']), device=cfg["device"])#.to(cfg["device"])
+        # self.criterion = nn.MSELoss().to(cfg['device'])
         self.metric_criterion = TripletMargingLoss().to(cfg["device"])
         # self.scheduler = CosineAnnealingLR(self.optimizer, T_max=60, eta_min=5e-4)
         
+        self.color_mean = torch.tensor(cfg['mean']).to(cfg["device"])
+        self.cosine_dist = nn.CosineSimilarity()
         if cfg["mode"] == 'train' :
             self.train_loader, self.valid_loader = self.create_dataloader([self.get_transform('train', **cfg), 
                                                                            self.get_transform('valid', **cfg)], **cfg)
@@ -48,23 +51,30 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         self.optimizer.zero_grad()
 
         img = img.to(cfg["device"])
-        
-        mean_label = torch.tensor(cfg["mean"])[label].to(cfg["device"])
         label = label.to(cfg["device"])
-        ## img, lam, label_a, label_b = cutmix(img, label)
+        
+        # mean_label = torch.tensor(cfg["mean"])[label].to(cfg["device"])
+        
+        img, lam, label_a, label_b = cutmix(img, label)
 
-        mse_output = self.model(img)
-        output = self.cls_head(mse_output)
+        emb, output = self.model(img, div=True)
+        color_dist = torch.stack([self.cosine_dist(output, self.color_mean[i]) for i in range(18)], dim= 1)
+        ce_loss = lam * self.criterion(color_dist, label_a) + (1 - lam) * self.criterion(color_dist, label_b)
+        m_loss = lam * self.metric_criterion(emb, label_a) + (1 - lam) * self.metric_criterion(emb, label_b)
+        
+        # output = self.cls_head(mse_output)
         ## loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b) + self.metric_criterion(emb, label)
         # loss = self.criterion(output, label.type(torch.float32))
         
-        loss = self.criterion(mse_output, mean_label)  + self.cls_criterion(output, label)
+        # loss = self.criterion(mse_output, mean_label)  + self.cls_criterion(output, label)
+        loss = ce_loss + m_loss
         
         loss.backward()
         self.optimizer.step()
         
         # acc = score(mixup_label, output)
-        acc = score(label, output)
+        # acc = score(label, output)
+        acc = score(label, color_dist)
         # acc = score(torch.argmax(label, dim=1), output)
         # acc = distance_score(output, cfg["mean"], label)
         
@@ -78,7 +88,7 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
     def valid_on_batch(self, img, label, step, **cfg):
         img = img.to(cfg["device"])
         
-        mean_label = torch.tensor(cfg["mean"])[label].to(cfg["device"])
+        # mean_label = torch.tensor(cfg["mean"])[label].to(cfg["device"])
         label = label.to(cfg["device"])
         
         if cfg["binary_mode"] :
@@ -89,13 +99,17 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
             
             acc = score(mixup_label, output)
         else :        
-            mse_output = self.model(img)
-            output = self.cls_head(mse_output)
+            # mse_output = self.model(img)
+            # output = self.cls_head(mse_output)
+            output = self.model(img)
             
+            color_dist = torch.stack([self.cosine_dist(output, self.color_mean[i]) for i in range(18)], dim= 1)
+
             # loss = self.criterion(output, label)
-            loss = self.criterion(mse_output, mean_label)  + self.cls_criterion(output, label)
+            loss = self.criterion(color_dist, label)  + self.metric_criterion(output, label)
             
-            acc, cls_report = score(label, output, mode="valid")
+            acc, cls_report = score(label, color_dist, mode="valid")
+            # acc, cls_report = score(label, output, mode="valid")
             # acc, cls_report = distance_score(output, cfg["mean"], label, mode="valid")
             
         batch_metric = {
@@ -153,14 +167,14 @@ if __name__ == "__main__" :
     cfg = {
         "mode" : "train", #train, #infer
         
-        "model_name" : "tf_efficientnetv2_s.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
+        "model_name" : "wide_resnet101_2", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
         #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",#"beit_base_patch16_224.in22k_ft_in22k", #"convnextv2_base.fcmae_ft_in1k"
         "num_classes" : 3,#18,
         
-        "learning_rate" : 5e-4,
+        "learning_rate" : 1e-3,
         "focal_alpha" : 2,
         "focal_gamma" : 2,
-        "resize" : 224,
+        "resize" : 112,
         
         "data_train_path" : "./sub-task2/Dataset/Train",
         "data_train_csv_path" : "./sub-task2/Dataset/aug_info_etri20_color_train.csv",
@@ -173,16 +187,16 @@ if __name__ == "__main__" :
         # "data_infer_csv_path" : "./sub-task2/Dataset/info_etri20_color_test_sample.csv",
         
         "epochs" : 80,
-        "batch_size" : 48,
+        "batch_size" : 128,
         "num_worker" : 4,
-        "early_stop_patient" : 10,
+        "early_stop_patient" : 30,
         
-        "reuse" : True, #True, #False
-        "weight_path" : "./sub-task2/ckpt/tf_efficientnetv2_s.in21k/color_mse/57E-val0.4005303784909048-tf_efficientnetv2_s.in21k.pth",
+        "reuse" : False, #True, #False
+        "weight_path" : "./sub-task2/ckpt/wide_resnet101_2/color_mse/57E-val0.4005303784909048-tf_efficientnetv2_s.in21k.pth",
         
-        "save_path" : "./sub-task2/ckpt/tf_efficientnetv2_s.in21k/color_cls_fromMse",
-        "output_path" : "./sub-task2/output/tf_efficientnetv2_s.in21k/color_cls_fromMse",
-        "log_path" : "./sub-task2/logging/color_cls_fromMse",
+        "save_path" : "./sub-task2/ckpt/wide_resnet101_2/color_CosSim_CELoss",
+        "output_path" : "./sub-task2/output/wide_resnet101_2/color_CosSim_CELoss",
+        "log_path" : "./sub-task2/logging/color_CosSim_CELoss",
         "device" : "cuda",
         
         "mean" : [[0.5929038396997668, 0.3447893774705255, 0.3534702696658963],
@@ -205,10 +219,9 @@ if __name__ == "__main__" :
                 [0.34385191904078777, 0.331707936345238, 0.3298444517893208]],
         "binary_mode" : False,
         "seed": 2455,
-        "note" : ["added cls head", "Metric Learning", "Label1,2,8,9에 Offline Aug 사용", 
-                "CenterCrop 사용하지 않음", 
-                "Aug 정도 하향조정", "Bbox를 이용한 Center crop 사용", 
-                "Cutmix 사용", "CE Loss 사용", "Adam Optim 사용"]
+        "note" : ["cosine Sim + CE Loss with color label", "Metric Learning", "Label1,2,8,9에 Offline Aug 사용", 
+                "CenterCrop 사용하지 않음", "Aug 정도 하향조정",
+                "Cutmix 사용",  "Adam Optim 사용"]
     }        
     
     if cfg["mode"] == "train" :

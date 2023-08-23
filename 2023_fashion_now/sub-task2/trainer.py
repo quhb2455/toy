@@ -117,6 +117,8 @@ class Trainer() :
             torch.save({
                 "epoch": epoch,
                 "model_state_dict": self.model.state_dict(),
+                # "upper_state_dict": self.upper_head.state_dict(),
+                # "lower_state_dict": self.low_head.state_dict(),
                 "optimizer_state_dict": self.optimizer.state_dict()
             }, os.path.join(cfg["save_path"], str(epoch) + 'E-val' + str(self.best_score) + '-' + cfg["model_name"] + '.pth'))
             self.early_stop_cnt = 0 

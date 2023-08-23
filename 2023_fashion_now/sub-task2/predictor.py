@@ -52,6 +52,8 @@ class Predictor() :
         if device == "cpu" :
             checkpoint = torch.load(weight_path, map_location=torch.device('cpu'))
         self.model.load_state_dict(checkpoint['model_state_dict'])
+        # self.upper_head.load_state_dict(checkpoint['upper_state_dict'])
+        # self.low_head.load_state_dict(checkpoint['lower_state_dict'])
     
     # def pred_weight_load(self, weight_path) :
     #     checkpoint = torch.load(weight_path)
