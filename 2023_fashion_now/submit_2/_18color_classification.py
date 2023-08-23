@@ -1,18 +1,19 @@
 from trainer import Trainer
 from predictor import Predictor
 from datasets import DatasetCreater
-from models import BaseModel, DivBaseModel
+from models import BaseModel, DivBaseModel, MultiHeadBaseModel, ColorClassifierHead, BinaryClassifierHead
 from loss_fn import FocalLoss, TripletMargingLoss
-from utils import save_config, mixup, cutmix, score, get_loss_weight
+from optim_fn import SAM
+from utils import save_config, mixup, cutmix, score, get_loss_weight, set_seed, cal_cls_report, Multi_cutmix
 
 import torch
 import torch.nn as nn
-from torch.optim import Adam, AdamW
+from torch.optim import SGD, Adam, AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from albumentations.core.transforms_interface import ImageOnlyTransform
-from pytorch_metric_learning import miners, losses
+# from pytorch_metric_learning import miners, losses
 
 import cv2
 import numpy as np
@@ -23,12 +24,26 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         super().__init__()
         # self.model = BaseModel(**cfg).to(cfg["device"])
         self.model = DivBaseModel(**cfg).to(cfg["device"])
+        
+        # self.model = MultiHeadBaseModel(**cfg).to(cfg["device"])
+        # in_dim = list(self.model.backbone.children())[-1].in_features
+        # self.binary_head = BinaryClassifierHead(in_dim, 128).to(cfg["device"])
+        # self.low_head = ColorClassifierHead(in_dim, 128, 10).to(cfg["device"])
+        # self.upper_head = ColorClassifierHead(in_dim, 128, 8).to(cfg["device"])
+        
         self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
+        # self.optimizer = Adam([
+        #     {"params":self.model.parameters()},
+        #     # {"params" : self.binary_head.parameters()},
+        #     {"params" : self.low_head.parameters(), 'lr' : 1e-4},
+        #     {"params" : self.upper_head.parameters()},], lr=cfg["learning_rate"])
+        
+        # self.optimizer = SAM(self.model.parameters(), SGD, weight_decay=0.0001, momentum=0.9,lr=cfg["learning_rate"])
         # self.criterion = FocalLoss(alpha=cfg["focal_alpha"],gamma=cfg["focal_gamma"]).to(cfg["device"])
-        # self.criterion = FocalLoss(alpha=cfg["focal_alpha"],gamma=cfg["focal_gamma"]).to(cfg["device"])
-        self.criterion = nn.CrossEntropyLoss().to(cfg["device"])
+        self.ce_criterion = nn.CrossEntropyLoss().to(cfg["device"])
+        # self.bce_criterion = nn.BCELoss().to(cfg["device"])
         self.metric_criterion = TripletMargingLoss().to(cfg["device"])
-        # self.scheduler = CosineAnnealingLR(self.optimizer, T_max=60, eta_min=5e-4)
+        # self.scheduler = CosineAnnealingLR(self.optimizer.base_optimizer, T_max=cfg['epochs'], eta_min=0.008)
         
         if cfg["mode"] == 'train' :
             self.train_loader, self.valid_loader = self.create_dataloader([self.get_transform('train', **cfg), 
@@ -40,35 +55,117 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
     def train(self, **cfg) :
         self.run(**cfg)
         
-    def train_on_batch(self, img, label, **cfg) :
+    def train_on_epoch(self, epoch, **cfg):
+        self.model.train()
+        # self.binary_head.train()
+        # self.low_head.train()
+        # self.upper_head.train()
+        train_acc, train_loss = [], []
+        # train_upper_loss, train_lower_loss = [], []
+        tqdm_train = tqdm(self.train_loader)
+        for step, (img, label) in enumerate(tqdm_train) :
+            batch_res = self.train_on_batch(img, label, step, **cfg)
+            
+            train_acc.append(batch_res["acc"])
+            train_loss.append(batch_res["loss"])
+            # train_upper_loss.append(batch_res["upper_loss"])
+            # train_lower_loss.append(batch_res["lower_loss"])
+            
+            log = {
+                "Epoch" : epoch,
+                "Training Acc" : np.mean(train_acc),
+                "Training Loss" : np.mean(train_loss),
+                # "Training Upper Loss" : np.mean(train_upper_loss),
+                # "Training Lower Loss" : np.mean(train_lower_loss),
+            }
+            tqdm_train.set_postfix(log)
+        
+        self.logging(log, epoch)    
+        self.scheduler_step()
+        
+    def train_on_batch(self, img, label, step, **cfg) :
         self.optimizer.zero_grad()
 
         img = img.to(cfg["device"])
         label = label.to(cfg["device"])
-
-        img, lam, label_a, label_b = cutmix(img, label)
-
-        output = self.model(img)
-        loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b)
+        # up_label = up_low[0].to(cfg["device"])
+        # low_label = up_low[1].to(cfg["device"])
+        
+        # up_label = label.masked_select(up_low)
+        # low_label = label.masked_select(~up_low)
+        
+        img, lam, label_a, label_b = cutmix(img, label) 
+        # img, lam, label_a, label_b, up_label_a, up_label_b, low_label_a, low_label_b = Multi_cutmix(img, label, up_label, low_label)
+        # output = torch.randn(cfg['batch_size'], cfg['num_classes'])
+        emb, output = self.model(img, div=True)
+        # emb = self.model(img)
+        # masking = self.binary_head(emb)
+        # upper_out = self.upper_head(emb)#, masking, mode='upper')
+        # lower_out = self.low_head(emb)#, masking, mode='lower')
+        
+        ce_loss = lam * (self.ce_criterion(output, label_a)) + (1-lam) * (self.ce_criterion(output, label_b))
+        # masking_loss = self.bce_criterion(masking, up_low.float().unsqueeze(1))
+        # upper_loss = lam * torch.nan_to_num(self.ce_criterion(upper_out, up_label_a)) + (1-lam) * torch.nan_to_num(self.ce_criterion(upper_out, up_label_b))#self.ce_criterion(upper_out, up_label)
+        # lower_loss = lam * torch.nan_to_num(self.ce_criterion(lower_out, low_label_a)) + (1-lam) * torch.nan_to_num(self.ce_criterion(lower_out, low_label_b))#self.ce_criterion(upper_out, up_label)
+        m_loss = lam * self.metric_criterion(emb, label_a) + (1-lam) * self.metric_criterion(emb, label_b)
+        loss = ce_loss + m_loss
+        
+        # loss = lam * self.criterion(output, label_a) + (1 - lam) * self.criterion(output, label_b) + lam * self.metric_criterion(emb, label_a) + (1 - lam) * self.metric_criterion(emb, label_b)
+        
         # loss = self.criterion(output, label.type(torch.float32))
         loss.backward()
         self.optimizer.step()
         
         # acc = score(mixup_label, output)
         acc = score(label, output)
+        # acc = score(label, torch.cat([lower_out, upper_out], dim=1))
         # acc = score(torch.argmax(label, dim=1), output)
 
         
         batch_metric = {
             "acc" : acc,
-            "loss" : loss.item()
+            "loss" : loss.item(),
+            # "upper_loss" : upper_loss.item(),
+            # "lower_loss" : lower_loss.item(),
         }
         
         return batch_metric 
 
-    def valid_on_batch(self, img, label, **cfg):
+    def valid_on_epoch(self, epoch, **cfg):
+        self.model.eval()
+        # self.low_head.eval()
+        # self.upper_head.eval()
+        valid_acc, valid_loss, valid_output = [], [], [[], []]
+        # valid_upper_loss, valid_lower_loss = [], []
+        tqdm_valid = tqdm(self.valid_loader)
+        for step, (img, label) in enumerate(tqdm_valid) :
+            batch_res = self.valid_on_batch(img, label, step, **cfg)
+            
+            valid_acc.append(batch_res["acc"])
+            valid_loss.append(batch_res["loss"])
+            valid_output[0].extend(batch_res['labelAcc'][0])
+            valid_output[1].extend(batch_res['labelAcc'][1])
+            
+            # valid_upper_loss.append(batch_res["upper_loss"])
+            # valid_lower_loss.append(batch_res["lower_loss"])
+            log = {
+                "Epoch" : epoch,
+                "Validation Acc" : np.mean(valid_acc),
+                "Validation Loss" : np.mean(valid_loss),
+                # "Validation Upper Loss" : np.mean(valid_upper_loss),
+                # "Validation Lower Loss" : np.mean(valid_lower_loss),
+            }
+            tqdm_valid.set_postfix(log)
+            
+        self.logging({"LabelAcc" : cal_cls_report(valid_output[0], valid_output[1])}, epoch, mode='multi')
+        self.logging(log, epoch)    
+        return np.mean(valid_acc), np.mean(valid_loss)
+    
+    def valid_on_batch(self, img, label,  step, **cfg):
         img = img.to(cfg["device"])
         label = label.to(cfg["device"])
+        # up_label = up_low[0].to(cfg["device"])
+        # low_label = up_low[1].to(cfg["device"])
         
         if cfg["binary_mode"] :
             mixup_label = torch.argmax(label, dim=1)
@@ -78,19 +175,55 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
             
             acc = score(mixup_label, output)
         else :        
+            # output = self.model(img)
             output = self.model(img)
-            loss = self.criterion(output, label)
+            # masking = self.binary_head(emb)
+            # upper_out = self.upper_head(emb)#, masking, mode='upper')
+            # lower_out = self.low_head(emb)#, masking, mode='lower')
             
-            acc = score(label, output)
+            # upper_loss = self.ce_criterion(upper_out, up_label)
+            # lower_loss = self.ce_criterion(lower_out, low_label)    
+            loss = self.ce_criterion(output, label)
+            # loss = upper_loss + lower_loss
+            
+            acc, cls_report = score(label, output, mode="valid")
+            # acc, cls_report = score(label, torch.cat([lower_out, upper_out], dim=1), mode="valid")
+            
         batch_metric = {
             "acc" : acc,
-            "loss" : loss.item()
+            "loss" : loss.item(),
+            # "upper_loss" : upper_loss.item(),
+            # "lower_loss" : lower_loss.item(),
+            "labelAcc" : cls_report
         }
         
+        # self.logging({'LabelAcc' : cls_report}, step, mode='multi')
         return batch_metric
+    
        
     def infer(self, **cfg) :
         return self.prediction(**cfg)
+    
+    
+    def prediction(self, **cfg) :
+        self.pred_weight_load(cfg["weight_path"],cfg["device"])
+        self.model.eval()
+        # self.low_head.eval()
+        # self.upper_head.eval()     
+        model_preds = []
+        with torch.no_grad() :
+            for img in tqdm(self.test_loader) :
+                model_preds += self.predict_on_batch(img, **cfg)
+        
+        return self.save_to_csv(model_preds, **cfg)
+        
+    
+    def predict_on_batch(self, img, **cfg) :
+        img = img.to(cfg["device"])
+        output = self.model(img)
+        # upper_out = self.upper_head(emb)
+        # lower_out = self.low_head(emb)
+        return output.argmax(1).detach().cpu().numpy().tolist()
     
     
     def get_transform(self, _mode, **cfg) :
@@ -98,22 +231,41 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         if _mode == 'train' :
             return A.Compose([
                 A.Resize(resize, resize),
+                # A.RandomBrightness((0.2, 0.3), p =1),
+                A.OneOf([
+                    A.CoarseDropout(min_holes=5, max_holes=10, max_height=8, min_height=8),
+                    A.GlassBlur(sigma=1, max_delta=2),        
+                ], p=0.3),
+                
+                A.OneOf([
+                    A.OpticalDistortion(p=1, border_mode=1,
+                        distort_limit=3, shift_limit=1),
+                    A.Affine(rotate=(-180, 180), fit_output=False, mask_interpolation=1, mode=3, p=0.3),
+                ], p=0.3),
+                
+                A.RandomGridShuffle(grid=(3, 3), p=1),
                 A.Normalize(),
+                # A.Normalize(mean=(0.548172032,0.467046563,0.434142448),
+                #             std=(0.12784231,0.122905336,0.119736256)),
                 ToTensorV2()
             ])
         elif _mode == 'valid' :
             return A.Compose([
                 A.Resize(resize, resize),
-                # A.Emboss(p=1),
-                # A.Sharpen(p=1), 
-                # A.FancyPCA(p=1),
+                A.RandomGridShuffle(grid=(3, 3), p=1),
+                # A.RandomBrightness((0.2, 0.3), p =1),
                 A.Normalize(),
+                # A.Normalize(mean=(0.548172032,0.467046563,0.434142448),
+                #             std=(0.12784231,0.122905336,0.119736256)),
                 ToTensorV2()
             ])
         elif _mode == 'infer' : 
             return A.Compose([
                 A.Resize(resize, resize),
+                # A.RandomGridShuffle(grid=(3, 3), p=1),
                 A.Normalize(),
+                # A.Normalize(mean=(0.548172032,0.467046563,0.434142448),
+                #             std=(0.12784231,0.122905336,0.119736256)),
                 ToTensorV2()
             ])
 
@@ -121,51 +273,61 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
 if __name__ == "__main__" :
     
     cfg = {
-        "mode" : "infer", #train, #infer
+        "mode" : "train", #train, #infer
         
-        "model_name" : "tf_efficientnetv2_s.in21k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
-        #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",#"beit_base_patch16_224.in22k_ft_in22k",
+        "model_name" : "seresnext101_64x4d", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
+        # "tf_efficientnet_b4", #"resnetv2_101x1_bit", #"resnetv2_152x2_bit", #"resnetv2_50x1_bit",
+        #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",, #"wide_resnet101_2", #"seresnext50_32x4d"
+        #"beit_base_patch16_224.in22k_ft_in22k", #"convnextv2_base.fcmae_ft_in1k", #"seresnet101", #"seresnext101_64x4d"
         "num_classes" : 18,
         
-        "learning_rate" : 1e-4,
+        "learning_rate" : 5e-4,
         "focal_alpha" : 2,
         "focal_gamma" : 2,
-        "resize" : 224,
+        "resize" : 112,
         
         "data_train_path" : "./sub-task2/Dataset/Train",
-        "data_train_csv_path" : "./sub-task2/Dataset/info_etri20_color_train.csv",
+        "data_train_csv_path" : "./sub-task2/Dataset/sampling_aug_info_etri20_color_train.csv",
         "data_valid_path" : "./sub-task2/Dataset/Validation",
         "data_valid_csv_path" : "./sub-task2/Dataset/info_etri20_color_validation.csv",
         
-        # "data_infer_path" : "/aif/Dataset/Test/",
-        # "data_infer_csv_path" : "/aif/Dataset/info_etri20_color_test.csv",
-        "data_infer_path" : "./sub-task2/Dataset/Test_sample",
-        "data_infer_csv_path" : "./sub-task2/Dataset/info_etri20_color_test_sample.csv",
+        "data_infer_path" : "/aif/Dataset/Test/",
+        "data_infer_csv_path" : "/aif/Dataset/info_etri20_color_test.csv",
+        # "data_infer_path" : "./sub-task2/Dataset/Test_sample",
+        # "data_infer_csv_path" : "./sub-task2/Dataset/info_etri20_color_test_sample.csv",
         
         "epochs" : 80,
-        "batch_size" : 32,
+        "batch_size" : 128,
         "num_worker" : 4,
-        "early_stop_patient" : 10,
+        "early_stop_patient" : 30,
         
         "reuse" : False, #True, #False
-        "weight_path" : "./sub-task2/ckpt/tf_efficientnetv2_s.in21k/18color_centercrop_classification/7E-val0.5843784109409109-tf_efficientnetv2_s.in21k.pth",
+        "weight_path" : "./sub-task2/ckpt/seresnext101_64x4d/SpatialAug_SmallSize_GridTTA/12E-val0.5823576946932211-resnetv2_152d.pth",
         
-        "save_path" : "./sub-task2/ckpt/tf_efficientnetv2_s.in21k/18color_centercrop_classification",
-        "output_path" : "./sub-task2/output/tf_efficientnetv2_s.in21k/18color_centercrop_classification",
-        "log_path" : "./sub-task2/logging/18color_normal_classification",
-        "device" : "cpu",
+        "save_path" : "./sub-task2/ckpt/seresnext101_64x4d/SpatialAug_SmallSize_GridTTA",
+        "output_path" : "./sub-task2/output/seresnext101_64x4d/SpatialAug_SmallSize_GridTTA",
+        "log_path" : "./sub-task2/logging/SpatialAug_SmallSize_GridTTA",
+        "device" : "cuda",
         
         "binary_mode" : False,
         
-        "note" : "Cutmix 사용, FocalLoss 사용, Adam Optim 사용"
-    }
-    
+        "loss_weight" : [0.8622, 1.2872, 1.0935, 0.9228, 0.9122, 1.0983, 1.1635, 1.0886,
+                        1.015 , 1.1258, 0.9061, 0.9446, 0.9728, 0.8595, 0.9743, 0.9163,
+                        0.9292, 0.9281],
+        
+        
+        "seed": 2455,
+        "note" : ["small size", "add spatial aug", "Metric Learning label_b 도 이용", "Label1,2,8,9에 Offline Aug 사용", 
+                "CenterCrop 사용하지 않음",
+                "Cutmix 사용", "CE Loss 사용", "Adam Optim 사용"]
+    }        
     
     if cfg["mode"] == "train" :
         cfg["shuffle"] = True
     elif cfg["mode"] == "infer" :
         cfg["shuffle"] = False
     
+    set_seed(cfg["seed"])
     save_config(cfg, cfg["save_path"], save_name=cfg["mode"]+"_config")
     
     base_main = BaseMain(**cfg)
@@ -173,7 +335,6 @@ if __name__ == "__main__" :
     if cfg["mode"] == "train" :
         base_main.train(**cfg)
     elif cfg["mode"] == "infer" :
-        df = base_main.infer(**cfg)
-        print(df)
+        base_main.infer(**cfg)
     
     

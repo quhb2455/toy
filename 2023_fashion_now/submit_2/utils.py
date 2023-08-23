@@ -1,5 +1,6 @@
 from typing import Any
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
+from scipy.spatial import distance
 from datetime import datetime
 from glob import glob
 from tqdm import tqdm
@@ -15,6 +16,7 @@ from albumentations.pytorch import ToTensorV2
 # CAM
 from torch.autograd import Variable
 from torch.nn import functional as F
+from torch.nn.modules.batchnorm import _BatchNorm
 
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -29,13 +31,39 @@ def get_loss_weight(data_path):
     num_data_samples = []
     for p in sorted(glob(os.path.join(data_path, "*"))) :
         num_data_samples.append(len(os.listdir(p)))
-    return [1 - (x / sum(num_data_samples)) for x in num_data_samples]
+    # return [1 - (x / sum(num_data_samples)) for x in num_data_samples]
+    return [sum(num_data_samples) / (x * len(glob(os.path.join(data_path, "*")))) for x in num_data_samples]
 
-def score(true_labels, model_preds, threshold=None) :
+def score(true_labels, model_preds, mode=None) :
     model_preds = model_preds.argmax(1).detach().cpu().numpy().tolist()
     true_labels = true_labels.detach().cpu().numpy().tolist()
-    return f1_score(true_labels, model_preds, average='weighted')
-
+    if mode == None :
+        return f1_score(true_labels, model_preds, average='weighted')
+    else :
+        f1score = f1_score(true_labels, model_preds, average='weighted')
+        # cls_report = confusion_matrix(true_labels, model_preds)
+        return f1score, [true_labels, model_preds]
+ 
+def distance_score(model_preds, mean_labels, true_labels, mode=None):
+    preds = model_preds.detach().cpu().numpy().tolist()
+    # mean_labels = mean_labels.detach().cpu().numpy().tolist()
+    true_labels = true_labels.numpy().tolist()
+    dist_label_list = []
+    for p in preds :
+        dist_label_list.append(np.argmin([distance.euclidean(p, m) for m in mean_labels]))
+    if mode == None :
+        return f1_score(true_labels, dist_label_list, average='weighted')
+    else :
+        f1score = f1_score(true_labels, dist_label_list, average='weighted')
+        return f1score, [true_labels, dist_label_list]
+ 
+def cal_cls_report(true_labels, model_preds) :
+    rpt = classification_report(true_labels, model_preds, zero_division=0.0, output_dict=True)
+    del rpt['accuracy']
+    del rpt['macro avg']
+    del rpt['weighted avg']
+    return {str(k) : v['f1-score'] for k, v in rpt.items()}
+    
 def save_config(config, save_path, save_name="") :
     os.makedirs(save_path, exist_ok=True)
     cfg_save_time = datetime.now().strftime('%Y_%m_%d-%H_%M_%S')
@@ -79,7 +107,7 @@ def rand_bbox(size, lam):
 
 def cutmix(imgs, labels):
     lam = np.random.beta(1.0, 1.0)
-    rand_index = torch.randperm(imgs.size()[0])#.cuda()
+    rand_index = torch.randperm(imgs.size()[0]).cuda()
     target_a = labels
     target_b = labels[rand_index]
     bbx1, bby1, bbx2, bby2 = rand_bbox(imgs.size(), lam)
@@ -89,9 +117,25 @@ def cutmix(imgs, labels):
 
     return imgs, lam, target_a, target_b
 
+def Multi_cutmix(imgs, labels, upper, lower) :
+    lam = np.random.beta(1.0, 1.0)
+    rand_index = torch.randperm(imgs.size()[0]).cuda()
+    target_a = labels
+    target_b = labels[rand_index]
+    upper_a = upper
+    upper_b = upper[rand_index]
+    lower_a = lower
+    lower_b = lower[rand_index]
+    bbx1, bby1, bbx2, bby2 = rand_bbox(imgs.size(), lam)
+    imgs[:, :, bbx1:bbx2, bby1:bby2] = imgs[rand_index, :, bbx1:bbx2, bby1:bby2]
+
+    lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (imgs.size()[-1] * imgs.size()[-2]))
+
+    return imgs, lam, target_a, target_b, upper_a, upper_b, lower_a, lower_b
+
 def mixup(imgs, labels):
     lam = np.random.beta(1.0, 1.0)
-    rand_index = torch.randperm(imgs.size()[0])#.cuda()
+    rand_index = torch.randperm(imgs.size()[0]).cuda()
     mixed_imgs = lam * imgs + (1 - lam) * imgs[rand_index, :]
     target_a, target_b = labels, labels[rand_index]
 
@@ -133,7 +177,7 @@ def returnCAM(feature_conv, weight_softmax, class_idx):
         output_cam.append(cv2.resize(cam_img, size_upsample))
     return output_cam
 
-# def get_CAM(net, final_conv_name, img, label_name):
+def get_CAM(net, final_conv_name, img, label_name):
     transforms = A.Compose([
         A.Resize(300, 300),
         A.Normalize(),
@@ -151,7 +195,7 @@ def returnCAM(feature_conv, weight_softmax, class_idx):
     weight_softmax = np.squeeze(params[-2].data.cpu().numpy())
     
     img_tensor = transforms(image=img)["image"]
-    img_variable = Variable(img_tensor.unsqueeze(0)).to("device")
+    img_variable = Variable(img_tensor.unsqueeze(0)).to("cuda")
     logit = net(img_variable.type('torch.cuda.FloatTensor'))
     
     classes = label_dec(label_name)
@@ -181,5 +225,17 @@ def logging(path):
     logger = SummaryWriter(path)
     return logger
 
-        
-        
+def disable_running_stats(model):
+    def _disable(module):
+        if isinstance(module, _BatchNorm):
+            module.backup_momentum = module.momentum
+            module.momentum = 0
+
+    model.apply(_disable)
+
+def enable_running_stats(model):
+    def _enable(module):
+        if isinstance(module, _BatchNorm) and hasattr(module, "backup_momentum"):
+            module.momentum = module.backup_momentum
+
+    model.apply(_enable)
