@@ -18,41 +18,7 @@ from albumentations.core.transforms_interface import ImageOnlyTransform
 import cv2
 import numpy as np
 from tqdm import tqdm
-import pandas as pd
 
-class CreateMeanTileImage(ImageOnlyTransform):
-    def __init__(
-        self,
-        min_size=10,
-        max_size=15,
-        num=10, 
-        always_apply=False,
-        p=1
-    ):
-        super(CreateMeanTileImage, self).__init__(always_apply, p)
-        self.min_size=min_size
-        self.max_size=max_size
-        self.num=num
-        
-    def apply(self, img, **params):
-        return self.create_mean_image(img)
-    
-    def create_mean_image(self, img) :
-        rgb = [int(img[:, :, i].mean()) for i in range(3)]
-        img_h, img_w = img.shape[:2]
-        for _ in range(self.num) :
-            tile_w = np.random.randint(self.min_size, self.max_size)
-            tile_h = np.random.randint(self.min_size, self.max_size)
-            y1 = np.random.randint(1, img_h)
-            x1 = np.random.randint(1, img_w)
-            y2 = y1 + tile_h
-            x2 = x1 + tile_w
-            img[y1 : y2, x1: x2, :] = rgb
-        return np.uint8(img)
-    
-    def get_transform_init_args_names(self):
-        return ("min_size", "max_size", "num")
-    
 class BaseMain(Trainer, Predictor, DatasetCreater) :
     def __init__(self, **cfg) -> None:
         super().__init__()
@@ -78,9 +44,6 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         # self.bce_criterion = nn.BCELoss().to(cfg["device"])
         self.metric_criterion = TripletMargingLoss().to(cfg["device"])
         # self.scheduler = CosineAnnealingLR(self.optimizer.base_optimizer, T_max=cfg['epochs'], eta_min=0.008)
-        
-        self.valid_output_chk = []
-        self.valid_gt_chk = []
         
         if cfg["mode"] == 'train' :
             self.train_loader, self.valid_loader = self.create_dataloader([self.get_transform('train', **cfg), 
@@ -195,10 +158,7 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
             tqdm_valid.set_postfix(log)
             
         self.logging({"LabelAcc" : cal_cls_report(valid_output[0], valid_output[1])}, epoch, mode='multi')
-        self.logging(log, epoch)   
-        
-        z = pd.DataFrame({"GT" : self.valid_gt_chk, "Output" : self.valid_output_chk})
-        z.to_csv("./valid_chk.csv", index=False) 
+        self.logging(log, epoch)    
         return np.mean(valid_acc), np.mean(valid_loss)
     
     def valid_on_batch(self, img, label,  step, **cfg):
@@ -225,8 +185,6 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
             # lower_loss = self.ce_criterion(lower_out, low_label)    
             loss = self.ce_criterion(output, label)
             # loss = upper_loss + lower_loss
-            self.valid_output_chk.extend(output.argmax(1).detach().cpu().numpy().tolist()) 
-            self.valid_gt_chk.extend(label.detach().cpu().numpy().tolist())
             
             acc, cls_report = score(label, output, mode="valid")
             # acc, cls_report = score(label, torch.cat([lower_out, upper_out], dim=1), mode="valid")
@@ -287,12 +245,10 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
                         distort_limit=3, shift_limit=1),
                     A.Affine(rotate=(-180, 180), fit_output=False, mask_interpolation=1, mode=3, p=0.3),
                 ], p=0.3),
-                CreateMeanTileImage(min_size=10, max_size=15, num=15,p=0.3),
+                # CreateMeanTileImage(min_size=10, max_size=15, num=15,p=0.3),
                 A.RandomGridShuffle(grid=(3, 3), p=0.3),
                 A.ElasticTransform(alpha=10, sigma=10 * 0.25, alpha_affine=10 * 0.25, p=0.2), #>>
-                A.Equalize(by_channels=False,p=1),
                 A.Normalize(),
-                # A.Normalize(mean=(0.7, 0.5, 0.1)),
                 # A.Normalize(mean=(0.548172032,0.467046563,0.434142448),
                 #             std=(0.12784231,0.122905336,0.119736256)),
                 ToTensorV2()
@@ -303,8 +259,6 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
                 # CreateMeanTileImage(min_size=10, max_size=15, num=30,p=1),
                 # A.RandomGridShuffle(grid=(3, 3), p=1),
                 # A.RandomBrightness((0.2, 0.3), p =1),
-                # A.Normalize(mean=(0.7, 0.5, 0.1)),
-                A.Equalize(by_channels=False,p=1),
                 A.Normalize(),
                 # A.Normalize(mean=(0.548172032,0.467046563,0.434142448),
                 #             std=(0.12784231,0.122905336,0.119736256)),
@@ -332,7 +286,7 @@ if __name__ == "__main__" :
         #"nf_resnet50",#"nfnet_f1"
         "num_classes" : 18,
         
-        "learning_rate" : 5e-5,
+        "learning_rate" : 5e-4,
         "focal_alpha" : 2,
         "focal_gamma" : 2,
         "resize" : 224,
@@ -353,11 +307,11 @@ if __name__ == "__main__" :
         "early_stop_patient" : 30,
         
         "reuse" : False, #True, #False
-        "weight_path" : "./sub-task2/ckpt/seresnext50_32x4d/Equalize_CustomAug_SpatialAug/63E-val0.6227062319989951-seresnext50_32x4d.pth",
+        "weight_path" : "./sub-task2/ckpt/seresnext50_32x4d/OfflineAug/12E-val0.5823576946932211-resnetv2_152d.pth",
         
-        "save_path" : "./sub-task2/ckpt/seresnext50_32x4d/Equalize_CustomAug_SpatialAug",
-        "output_path" : "./sub-task2/output/seresnext50_32x4d/Equalize_CustomAug_SpatialAug",
-        "log_path" : "./sub-task2/logging/Equalize_CustomAug_SpatialAug",
+        "save_path" : "./sub-task2/ckpt/seresnext50_32x4d/OfflineAug",
+        "output_path" : "./sub-task2/output/seresnext50_32x4d/OfflineAug",
+        "log_path" : "./sub-task2/logging/OfflineAug",
         "device" : "cuda",
         
         "binary_mode" : False,

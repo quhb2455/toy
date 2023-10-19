@@ -238,5 +238,3 @@ if __name__ == "__main__" :
         base_main.train(**cfg)
     elif cfg["mode"] == "infer" :
         base_main.infer(**cfg)
-    
-    

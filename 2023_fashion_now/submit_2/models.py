@@ -35,10 +35,11 @@ class ChannelAttention(nn.Module) :
         return x
     
 class DivBaseModel(nn.Module) :
-    def __init__(self, **cfg) -> None:
+    def __init__(self, in_chans=3, **cfg) -> None:
         super(DivBaseModel, self).__init__()
         self.model = timm.create_model(model_name=cfg["model_name"], 
                                        num_classes=cfg["num_classes"], 
+                                       in_chans=in_chans,
                                        pretrained=False)
         self.flatten = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),

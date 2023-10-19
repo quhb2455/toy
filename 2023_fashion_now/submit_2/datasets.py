@@ -116,26 +116,37 @@ class CustomDataset(Dataset):
     def __getitem__(self, index):
         img_path = self.imgs[index]
         p = self.bbox[index]
-
         # image = load_img(img_path)
         image = cv2.imread(img_path, cv2.IMREAD_COLOR)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+        image = image[p[1]:p[3], p[0]:p[2]]
+
         
-        image = image[p[1]:p[3], p[0]:p[2], :]
+        # Centercrop 
         # h, w = image.shape[:2]
-        # image = image[int(h*0.25):int(h*0.75), int(w*0.25):int(w*0.75), :]
-        
+        # if p[1] == 1 and p[0] == 1 :
+        #     pass
+        # else : # Aug 가 아닌 이미지에만 센터크롭 사용
+        #     image = image[int(h*0.25):int(h*0.75), int(w*0.25):int(w*0.75), :]
+            
         if self.transform :
             image = self.transform(image=image)['image']
 
         if self.labels is not None:
             if self.binary_mode :
-                label = torch.tensor(self.binary_encoder(self.label_enc[self.labels[index]]), dtype=torch.long)
+                # label = torch.tensor(self.binary_encoder(self.label_enc[self.labels[index]]), dtype=torch.long)
+                label = torch.tensor(self.labels[index], dtype=torch.float)
             else :
                 # label = self.label_enc[self.labels[index]]
                 label = self.labels[index]
-                
-            return image, label
+                # if label >= 10 : ## upper
+                #     upper_label = label % 10
+                #     lower_label = -1 ## ignore_index
+                # else : ## lower
+                #     upper_label = -1 ## ignore_index
+                #     lower_label = label
+            return image, label #, [upper_label, lower_label]
 
         else:
             return image
@@ -161,7 +172,7 @@ class DatasetCreater() :
                     CustomDataset(img_path[1], label_list[1], bbox_list[1], transform=transform[1], binary_mode=cfg["binary_mode"])]
             
         elif cfg["mode"] == 'infer' :
-            # save_config(transform.to_dict(), cfg["output_path"], save_name="infer_transform")
+            # save_config(transform.to_dict(), cfg["save_path"], save_name="infer_transform")
             return CustomDataset(img_path, label_list, bbox_list, transform=transform)
     
 
@@ -214,12 +225,20 @@ class DatasetCreater() :
             
             for df in train_csv.iloc :
                 t_img_path_list.append(os.path.join(train_root_path, df['image_name']))
-                t_label_list.append(df['Color'])
+                
+                if cfg['binary_mode'] : 
+                    t_label_list.append([df[str(k)] for k in range(18)])
+                else :
+                    t_label_list.append(df['Color'])
+                
                 t_bbox_list.append([df['BBox_xmin'], df['BBox_ymin'], df['BBox_xmax'], df['BBox_ymax']])
             
             for df in valid_csv.iloc:
                 v_img_path_list.append(os.path.join(valid_root_path, df['image_name']))
-                v_label_list.append(df['Color'])
+                if cfg['binary_mode'] : 
+                    v_label_list.append([df[str(k)] for k in range(18)])
+                else:
+                    v_label_list.append(df['Color'])
                 v_bbox_list.append([df['BBox_xmin'], df['BBox_ymin'], df['BBox_xmax'], df['BBox_ymax']])
             
             return [t_img_path_list, v_img_path_list], [t_label_list, v_label_list], [t_bbox_list, v_bbox_list]

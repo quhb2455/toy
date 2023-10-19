@@ -31,7 +31,7 @@ class BCELoss(nn.Module) :
         #                                  reduce=reduce, reduction=reduction, pos_weight=pos_weight)
 
     def forward(self, inputs, targets) :
-        targets = torch.Tensor([targets.detach().cpu().numpy().tolist()] * inputs.shape[0]).cuda()
+        # targets = torch.Tensor([targets.detach().cpu().numpy().tolist()] * inputs.shape[0]).cuda()
         return self.loss(inputs, targets)
     
 class AsymmetricLoss(nn.Module):

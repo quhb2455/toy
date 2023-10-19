@@ -119,7 +119,8 @@ class CustomDataset(Dataset):
         # image = load_img(img_path)
         image = cv2.imread(img_path, cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        image = image[p[1]:p[3], p[0]:p[2], :]
+        # image = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+        image = image[p[1]:p[3], p[0]:p[2]]
 
         
         # Centercrop 
@@ -134,7 +135,8 @@ class CustomDataset(Dataset):
 
         if self.labels is not None:
             if self.binary_mode :
-                label = torch.tensor(self.binary_encoder(self.label_enc[self.labels[index]]), dtype=torch.long)
+                # label = torch.tensor(self.binary_encoder(self.label_enc[self.labels[index]]), dtype=torch.long)
+                label = torch.tensor(self.labels[index], dtype=torch.float)
             else :
                 # label = self.label_enc[self.labels[index]]
                 label = self.labels[index]
@@ -170,7 +172,7 @@ class DatasetCreater() :
                     CustomDataset(img_path[1], label_list[1], bbox_list[1], transform=transform[1], binary_mode=cfg["binary_mode"])]
             
         elif cfg["mode"] == 'infer' :
-            save_config(transform.to_dict(), cfg["output_path"], save_name="infer_transform")
+            save_config(transform.to_dict(), cfg["save_path"], save_name="infer_transform")
             return CustomDataset(img_path, label_list, bbox_list, transform=transform)
     
 
@@ -223,12 +225,20 @@ class DatasetCreater() :
             
             for df in train_csv.iloc :
                 t_img_path_list.append(os.path.join(train_root_path, df['image_name']))
-                t_label_list.append(df['Color'])
+                
+                if cfg['binary_mode'] : 
+                    t_label_list.append([df[str(k)] for k in range(18)])
+                else :
+                    t_label_list.append(df['Color'])
+                
                 t_bbox_list.append([df['BBox_xmin'], df['BBox_ymin'], df['BBox_xmax'], df['BBox_ymax']])
             
             for df in valid_csv.iloc:
                 v_img_path_list.append(os.path.join(valid_root_path, df['image_name']))
-                v_label_list.append(df['Color'])
+                if cfg['binary_mode'] : 
+                    v_label_list.append([df[str(k)] for k in range(18)])
+                else:
+                    v_label_list.append(df['Color'])
                 v_bbox_list.append([df['BBox_xmin'], df['BBox_ymin'], df['BBox_xmax'], df['BBox_ymax']])
             
             return [t_img_path_list, v_img_path_list], [t_label_list, v_label_list], [t_bbox_list, v_bbox_list]

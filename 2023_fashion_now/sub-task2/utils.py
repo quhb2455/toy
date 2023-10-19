@@ -34,9 +34,12 @@ def get_loss_weight(data_path):
     # return [1 - (x / sum(num_data_samples)) for x in num_data_samples]
     return [sum(num_data_samples) / (x * len(glob(os.path.join(data_path, "*")))) for x in num_data_samples]
 
-def score(true_labels, model_preds, mode=None) :
+def score(true_labels, model_preds, mode=None, binary=False) :
     model_preds = model_preds.argmax(1).detach().cpu().numpy().tolist()
-    true_labels = true_labels.detach().cpu().numpy().tolist()
+    if binary :
+        true_labels = true_labels.argmax(1).detach().cpu().numpy().tolist()
+    else :
+        true_labels = true_labels.detach().cpu().numpy().tolist()
     if mode == None :
         return f1_score(true_labels, model_preds, average='weighted')
     else :
@@ -80,6 +83,11 @@ def load_img(path) :
     img_array = np.fromfile(path, np.uint8)
     img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
     return img
+
+def read_json(path):
+    with open(path, "r") as j:
+        meta = json.load(j)
+    return meta
 
 def label_enc(label_name) : 
     return {n:idx for idx, n in enumerate(label_name)}

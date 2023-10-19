@@ -309,7 +309,7 @@ if __name__ == "__main__" :
     cfg = {
         "mode" : "train", #train, #infer
         
-        "model_name" : "resnetv2_101x1_bit.goog_in21k_ft_in1k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
+        "model_name" : "seresnext50_32x4d.racm_in1k", #"tf_efficientnetv2_m.in21k", #"swinv2_base_window12to16_192to256_22kft1k",
         #"tf_efficientnetv2_s.in21k",#"eva_large_patch14_196.in22k_ft_in1k",#"beit_base_patch16_224.in22k_ft_in22k", #"convnextv2_base.fcmae_ft_in1k"
         "num_classes" : 86,
         # daily - 6
@@ -337,10 +337,10 @@ if __name__ == "__main__" :
         "early_stop_patient" : 10,
         
         "reuse" : False, #True, #False
-        "weight_path" : "./sub-task1/ckpt/resnetv2_101x1_bit.goog_in21k_ft_in1k/multi_head_SeperateOptim_PixelAug_LowLR_Metric2/7E-val0.6858378073151257-tf_efficientnetv2_m.in21k.pth",
+        "weight_path" : "./sub-task1/ckpt/seresnext50_32x4d.racm_in1k/multi_head_SeperateOptim_PixelAug_LowLR_Metric2/7E-val0.6858378073151257-tf_efficientnetv2_m.in21k.pth",
         
-        "save_path" : "./sub-task1/ckpt/resnetv2_101x1_bit.goog_in21k_ft_in1k/multi_head_SeperateOptim_PixelAug_LowLR_Metric2",
-        "output_path" : "./sub-task1/output/resnetv2_101x1_bit.goog_in21k_ft_in1k/multi_head_SeperateOptim_PixelAug_LowLR_Metric2",
+        "save_path" : "./sub-task1/ckpt/seresnext50_32x4d.racm_in1k/multi_head_SeperateOptim_PixelAug_LowLR_Metric2",
+        "output_path" : "./sub-task1/output/seresnext50_32x4d.racm_in1k/multi_head_SeperateOptim_PixelAug_LowLR_Metric2",
         "log_path" : "./sub-task1/logging/multi_head_SeperateOptim_PixelAug_LowLR_Metric2",
         "device" : "cuda",
         
