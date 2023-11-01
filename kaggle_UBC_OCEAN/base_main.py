@@ -1,3 +1,4 @@
+from typing import Tuple
 from trainer import Trainer
 from predictor import Predictor
 from datasets import DatasetCreater
@@ -17,32 +18,23 @@ from pytorch_metric_learning import miners, losses
 import cv2
 import numpy as np
 from tqdm import tqdm
-
-class MixedEdgeImage(ImageOnlyTransform):
-    def __init__(
-        self,
-        alpha=0.3,
-        beta=0.7,
-        always_apply=False,
-        p=1
-    ):
-        super(MixedEdgeImage, self).__init__(always_apply, p)
-        self.alpha = alpha
-        self.beta = beta
-        
-    def apply(self, img, **params):
-        return self.mixed_edge_image(img)
     
-    def mixed_edge_image(self, img) :
-        canny_img = cv2.Canny(img, 100, 200, apertureSize=7)
-        empty_img = np.zeros((canny_img.shape[0], canny_img.shape[1], 3))
-        for i in range(3):
-            empty_img[:,:,i] = canny_img
-        return np.uint8(empty_img *self.alpha + img * self.beta)
+class BackgroundRemove(ImageOnlyTransform):
+    def __init__(self,
+                 threshold=215, 
+                 always_apply: bool = False, p: float = 0.5):
+        super(BackgroundRemove, self).__init__(always_apply, p)
+        self.threshold = threshold
+    
+    def apply(self, img, **params):
+        return self.remove_background(img)
+    
+    def remove_background(self, img):
+        img[np.where((img > [self.threshold, self.threshold, self.threshold]).all(axis = 2))] = [0,0,0]
+        return img
     
     def get_transform_init_args_names(self):
-        return ("alpha", "beta")
-    
+        return ("threshold",)
     
 class BaseMain(Trainer, Predictor, DatasetCreater) :
     def __init__(self, **cfg) -> None:
@@ -51,7 +43,7 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         
         self.model = BaseModel(**cfg).to(cfg["device"])
         self.optimizer = Adam(self.model.parameters(), lr=cfg["learning_rate"])
-        self.criterion = nn.CrossEntropyLoss().to("cuda")        
+        self.criterion = nn.CrossEntropyLoss(weight=torch.tensor(cfg['label_weight'])).to("cuda")        
         self.scheduler = CosineAnnealingLR(self.optimizer, T_max=60, eta_min=5e-4)
         
         if cfg["mode"] == 'train' :
@@ -130,6 +122,7 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         if _mode == 'train' :
             return A.Compose([
                 A.Resize(resize, resize),
+                BackgroundRemove(always_apply=True),
                 # MixedEdgeImage(alpha=0.15, beta=0.85, p=0.5),
                 A.OneOf([
                     A.CLAHE(p=1),
@@ -157,12 +150,14 @@ class BaseMain(Trainer, Predictor, DatasetCreater) :
         elif _mode == 'valid' :
             return A.Compose([
                 A.Resize(resize, resize),
+                BackgroundRemove(always_apply=True),
                 A.Normalize(),
                 ToTensorV2()
             ])
         elif _mode == 'infer' : 
             return A.Compose([
                 A.Resize(resize, resize),
+                BackgroundRemove(always_apply=True),
                 A.Normalize(),
                 ToTensorV2()
             ])
@@ -182,7 +177,7 @@ if __name__ == "__main__" :
         "focal_gamma" : 2,
         "resize" : 512,
         
-        "data_path" : "./data",#"./data/more_first_aug_train", #"./data/combine_train",#"./data/train",#"./data/test",
+        "data_path" : "./data/train_thumbnails", #"./data/test_thumbnails", #"./data/train_thumbnails",
         "csv_path" : "./data/train.csv",
         "epochs" : 80,
         "batch_size" : 4,
@@ -191,15 +186,15 @@ if __name__ == "__main__" :
         
         "binary_mode" : False,
         "reuse" : False, #True, #False
-        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/rm_bg_effiv2s_512/24E-val0.8545489091407458-tf_efficientnetv2_s.in21k.pth",
+        "weight_path" : "./ckpt/tf_efficientnetv2_s.in21k/rmbg_lossweight_effiv2s_512/11E-val0.5294871794871795-tf_efficientnetv2_s.in21k.pth",
         
-        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/rm_bg_effiv2s_512",
-        "output_path" : "./output/tf_efficientnetv2_s.in21k/rm_bg_effiv2s_512",
+        "save_path" : "./ckpt/tf_efficientnetv2_s.in21k/rmbg_lossweight_effiv2s_512",
+        "output_path" : "./output/tf_efficientnetv2_s.in21k/rmbg_lossweight_effiv2s_512",
         "log_path" : "./logging",
         "device" : "cuda",
-        "label_name" : [],
+        "label_name" :["HGSC", "LGSC", "EC", "CC", "MC"],
         
-        "label_weight" : []
+        "label_weight" : [0.4646, 0.3709, 0.2072, 0.9787, 1.0]
     }        
     
     if cfg["mode"] == "train" :

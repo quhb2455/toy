@@ -17,3 +17,4 @@ car_crash_analyze/tensorboard/
 car_crash_analyze/*
 2023_fashion_now/sub-task2/logging
 2023_fashion_now/sub-task1/logging
+*/logging/*

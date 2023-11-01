@@ -83,8 +83,9 @@ class DatasetCreater() :
         label_list = []
         
         if mode == "infer" :
-            for p in glob(os.path.join(data_path, "*")) :
-                img_path_list.append(p)
+            for df in csv_file.iloc :
+                img_path_list.append(os.path.join(data_path, str(df['image_id'])+self.base_filename))
+                # label_list.append(df['label'])
             return img_path_list, None
         
         else :
@@ -93,7 +94,7 @@ class DatasetCreater() :
                     continue
                     # img_path_list.append(os.path.join(data_path, "train_images", str(df['image_id'])+".png"))
                 else :
-                    img_path_list.append(os.path.join(data_path, "train_thumbnails", str(df['image_id'])+self.base_filename))
+                    img_path_list.append(os.path.join(data_path, str(df['image_id'])+self.base_filename))
                 label_list.append(df['label'])
     
             train_img, valid_img, train_label, valid_label = train_test_split(img_path_list, 

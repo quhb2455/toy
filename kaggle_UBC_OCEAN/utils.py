@@ -52,10 +52,10 @@ def read_json(path):
     return m
 
 def label_enc(label_name) : 
-    return {n:idx for idx, n in enumerate(label_name)}
+    return {n:idx for idx, n in enumerate(sorted(label_name))}
 
 def label_dec(label_name) : 
-    return {idx:n for idx, n in enumerate(label_name)}
+    return {idx:n for idx, n in enumerate(sorted(label_name))}
 
 def rand_bbox(size, lam):
     W = size[2]
